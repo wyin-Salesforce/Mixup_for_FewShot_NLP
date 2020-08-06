@@ -451,6 +451,14 @@ def main():
     parser.add_argument("--do_train",
                         action='store_true',
                         help="Whether to run training.")
+    parser.add_argument("--DomainName",
+                        default="",
+                        type=str,
+                        help="Where do you want to store the pre-trained models downloaded from s3")
+    parser.add_argument('--kshot',
+                        type=int,
+                        default=5,
+                        help="random seed for initialization")
     parser.add_argument("--do_eval",
                         action='store_true',
                         help="Whether to run eval on the dev set.")
@@ -561,7 +569,7 @@ def main():
 
     # train_examples = processor.get_RTE_as_train('/export/home/Dataset/glue_data/RTE/train.tsv') #train_pu_half_v1.txt
     # train_examples = get_data_hulu_fewshot('train', 5)
-    train_examples, dev_examples, test_examples, label_list = load_CLINC150_with_specific_domain_sequence(args.DomainName, args.kshot, augment=args.do_data_aug)
+    train_examples, dev_examples, test_examples, label_list = load_CLINC150_with_specific_domain_sequence(args.DomainName, args.kshot, augment=False)
     num_labels = len(label_list)
     print('num_labels:', num_labels, 'training size:', len(train_examples), 'dev size:', len(dev_examples), 'test size:', len(test_examples))
 
@@ -778,4 +786,4 @@ if __name__ == "__main__":
     because classifier not initlized, so smaller learning rate 2e-6
     and fine-tune roberta-large needs more epochs
     '''
-# CUDA_VISIBLE_DEVICES=7 python -u train_CLINC150.py --task_name rte --do_train --do_lower_case --num_train_epochs 30 --data_dir '' --output_dir '' --train_batch_size 16 --eval_batch_size 32 --learning_rate 5e-6 --max_seq_length 128 --seed 42
+# CUDA_VISIBLE_DEVICES=7 python -u train_CLINC150.py --task_name rte --do_train --do_lower_case --num_train_epochs 30 --data_dir '' --output_dir '' --train_batch_size 16 --eval_batch_size 32 --learning_rate 5e-6 --max_seq_length 128 --seed 42 --DomainName 'banking' --kshot 5
