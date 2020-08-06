@@ -489,6 +489,9 @@ def main():
     parser.add_argument("--no_cuda",
                         action='store_true',
                         help="Whether not to use CUDA when available")
+    parser.add_argument("--use_mixup",
+                        action='store_true',
+                        help="Whether not to use CUDA when available")
     parser.add_argument("--local_rank",
                         type=int,
                         default=-1,
@@ -496,6 +499,10 @@ def main():
     parser.add_argument('--seed',
                         type=int,
                         default=42,
+                        help="random seed for initialization")
+    parser.add_argument('--beta_sampling_times',
+                        type=int,
+                        default=10,
                         help="random seed for initialization")
     parser.add_argument('--gradient_accumulation_steps',
                         type=int,
@@ -579,11 +586,6 @@ def main():
     if args.local_rank != -1:
         num_train_optimization_steps = num_train_optimization_steps // torch.distributed.get_world_size()
 
-    # Prepare model
-    # cache_dir = args.cache_dir if args.cache_dir else os.path.join(str(PYTORCH_TRANSFORMERS_CACHE), 'distributed_{}'.format(args.local_rank))
-
-    # pretrain_model_dir = 'roberta-large-mnli' #'roberta-large' , 'roberta-large-mnli'
-    # pretrain_model_dir = '/export/home/Dataset/BERT_pretrained_mine/crossdataentail/trainMNLItestRTE/0.8772563176895307'
     model = RobertaForSequenceClassification(num_labels)
     tokenizer = RobertaTokenizer.from_pretrained(pretrain_model_dir, do_lower_case=args.do_lower_case)
 
@@ -681,11 +683,11 @@ def main():
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, segment_ids, label_ids = batch
 
-                for _ in range(10):
+                for _ in range(args.beta_sampling_times):
                     lambda_vec = beta.rvs(0.4, 0.4, size=1)[0]
 
                     '''use mixup???'''
-                    use_mixup=True
+                    use_mixup=args.use_mixup
                     logits = model(input_ids, input_mask, None, None, lambda_vec, is_train=use_mixup)
                     loss_fct = CrossEntropyLoss()
 
@@ -786,4 +788,4 @@ if __name__ == "__main__":
     because classifier not initlized, so smaller learning rate 2e-6
     and fine-tune roberta-large needs more epochs
     '''
-# CUDA_VISIBLE_DEVICES=7 python -u train_CLINC150.py --task_name rte --do_train --do_lower_case --num_train_epochs 30 --data_dir '' --output_dir '' --train_batch_size 16 --eval_batch_size 32 --learning_rate 5e-6 --max_seq_length 128 --seed 42 --DomainName 'banking' --kshot 5
+# CUDA_VISIBLE_DEVICES=7 python -u train_CLINC150.py --task_name rte --do_train --do_lower_case --num_train_epochs 30 --data_dir '' --output_dir '' --train_batch_size 16 --eval_batch_size 32 --learning_rate 5e-6 --max_seq_length 128 --seed 42 --DomainName 'banking' --kshot 3 --use_mixup --beta_sampling_times 10
