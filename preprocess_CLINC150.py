@@ -38,7 +38,15 @@ domain2intents={'banking':['transfer','transactions','balance','freeze account',
 dataIntent_2_realIntent={'routing':'routing number', 'what can i ask you':'what can I ask you', 'change ai name':'change AI name',
 'min payment':'minimum payment', 'accept reservations': 'accept reservation'}
 
+class InputExample(object):
+    """A single training/test example for simple sequence classification."""
 
+    def __init__(self, guid, text_a, text_b=None, label=None):
+        self.guid = guid
+        self.text_a = text_a
+        self.text_b = text_b
+        self.label = label
+        
 def load_CLINC150_with_specific_domain_sequence(domain_name, k, augment=False):
     gold_intent_set = []
     for domain, intent_list in domain2intents.items():
