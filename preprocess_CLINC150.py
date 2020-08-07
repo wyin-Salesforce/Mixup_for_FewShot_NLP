@@ -46,7 +46,7 @@ class InputExample(object):
         self.text_a = text_a
         self.text_b = text_b
         self.label = label
-        
+
 def load_CLINC150_with_specific_domain_sequence(domain_name, k, augment=False):
     gold_intent_set = []
     for domain, intent_list in domain2intents.items():
@@ -61,7 +61,7 @@ def load_CLINC150_with_specific_domain_sequence(domain_name, k, augment=False):
 
     readfile = codecs.open('/export/home/Dataset/CLINC150/data_full.json', 'r', 'utf-8')
 
-
+    print('domain2intents:', domain2intents)
     interested_intents = domain2intents.get(domain_name)
     assert len(interested_intents) == 15
     file2dict =  json.load(readfile)
