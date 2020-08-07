@@ -1,5 +1,5 @@
 export domain='home'
-export BETATIMES=10
+export BETATIMES=20
 
 # CUDA_VISIBLE_DEVICES=0 python -u train_CLINC150.py \
 #     --task_name rte \
