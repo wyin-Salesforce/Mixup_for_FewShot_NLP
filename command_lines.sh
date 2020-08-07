@@ -91,7 +91,7 @@ CUDA_VISIBLE_DEVICES=0 python -u train_CLINC150.py \
     --output_dir '' \
     --train_batch_size 5 \
     --eval_batch_size 32 \
-    --learning_rate 5e-6 \
+    --learning_rate 1e-6 \
     --max_seq_length 20 \
     --seed 42 \
     --DomainName 'credit cards' \
@@ -108,7 +108,7 @@ CUDA_VISIBLE_DEVICES=1 python -u train_CLINC150.py \
     --output_dir '' \
     --train_batch_size 5 \
     --eval_batch_size 32 \
-    --learning_rate 5e-6 \
+    --learning_rate 1e-6 \
     --max_seq_length 20 \
     --seed 16 \
     --DomainName 'credit cards' \
@@ -125,7 +125,7 @@ CUDA_VISIBLE_DEVICES=2 python -u train_CLINC150.py \
     --output_dir '' \
     --train_batch_size 5 \
     --eval_batch_size 32 \
-    --learning_rate 5e-6 \
+    --learning_rate 1e-6 \
     --max_seq_length 20 \
     --seed 32 \
     --DomainName 'credit cards' \
@@ -142,7 +142,7 @@ CUDA_VISIBLE_DEVICES=3 python -u train_CLINC150.py \
     --output_dir '' \
     --train_batch_size 5 \
     --eval_batch_size 32 \
-    --learning_rate 5e-6 \
+    --learning_rate 1e-6 \
     --max_seq_length 20 \
     --seed 64 \
     --DomainName 'credit cards' \
@@ -159,7 +159,7 @@ CUDA_VISIBLE_DEVICES=4 python -u train_CLINC150.py \
     --output_dir '' \
     --train_batch_size 5 \
     --eval_batch_size 32 \
-    --learning_rate 5e-6 \
+    --learning_rate 1e-6 \
     --max_seq_length 20 \
     --seed 128 \
     --DomainName 'credit cards' \
