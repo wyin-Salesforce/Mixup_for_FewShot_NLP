@@ -1,4 +1,4 @@
-export domain='kitchen & dining'
+export domain='kitchen \& dining'
 export TASK_NAME=SST-2
 
 CUDA_VISIBLE_DEVICES=0 python -u train_CLINC150.py \
