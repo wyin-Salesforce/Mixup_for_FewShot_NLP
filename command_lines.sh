@@ -15,7 +15,7 @@ CUDA_VISIBLE_DEVICES=0 python -u train_CLINC150.py \
     --seed 42 \
     --DomainName 'banking' \
     --kshot 3 \
-    --beta_sampling_times 1 > log.seed.42.txt 2>&1
+    --beta_sampling_times 1 > log.seed.42.txt 2>&1 &
 
 CUDA_VISIBLE_DEVICES=1 python -u train_CLINC150.py \
     --task_name rte \
@@ -31,7 +31,7 @@ CUDA_VISIBLE_DEVICES=1 python -u train_CLINC150.py \
     --seed 16 \
     --DomainName 'banking' \
     --kshot 3 \
-    --beta_sampling_times 1 > log.seed.16.txt 2>&1
+    --beta_sampling_times 1 > log.seed.16.txt 2>&1 &
 
 CUDA_VISIBLE_DEVICES=2 python -u train_CLINC150.py \
     --task_name rte \
@@ -47,7 +47,7 @@ CUDA_VISIBLE_DEVICES=2 python -u train_CLINC150.py \
     --seed 32 \
     --DomainName 'banking' \
     --kshot 3 \
-    --beta_sampling_times 1 > log.seed.32.txt 2>&1
+    --beta_sampling_times 1 > log.seed.32.txt 2>&1 &
 
 CUDA_VISIBLE_DEVICES=3 python -u train_CLINC150.py \
     --task_name rte \
@@ -63,7 +63,7 @@ CUDA_VISIBLE_DEVICES=3 python -u train_CLINC150.py \
     --seed 64 \
     --DomainName 'banking' \
     --kshot 3 \
-    --beta_sampling_times 1 > log.seed.64.txt 2>&1
+    --beta_sampling_times 1 > log.seed.64.txt 2>&1 &
 
 CUDA_VISIBLE_DEVICES=4 python -u train_CLINC150.py \
     --task_name rte \
@@ -79,4 +79,4 @@ CUDA_VISIBLE_DEVICES=4 python -u train_CLINC150.py \
     --seed 128 \
     --DomainName 'banking' \
     --kshot 3 \
-    --beta_sampling_times 1 > log.seed.128.txt 2>&1
+    --beta_sampling_times 1 > log.seed.128.txt 2>&1 &
