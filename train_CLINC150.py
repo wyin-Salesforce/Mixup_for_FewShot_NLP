@@ -520,7 +520,7 @@ def main():
     parser.add_argument('--server_ip', type=str, default='', help="Can be used for distant debugging.")
     parser.add_argument('--server_port', type=str, default='', help="Can be used for distant debugging.")
 
-    print('parser:', parser)
+
     args = parser.parse_args()
 
 
@@ -567,8 +567,6 @@ def main():
 
 
 
-    print(args.DomainName)
-    exit(0)
     processor = processors[task_name]()
     output_mode = output_modes[task_name]
 

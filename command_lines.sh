@@ -16,7 +16,7 @@ CUDA_VISIBLE_DEVICES=0 python -u train_CLINC150.py \
     --learning_rate 5e-6 \
     --max_seq_length 20 \
     --seed 42 \
-    --DomainName $DOMAIN \
+    --DomainName "$DOMAIN" \
     --kshot 3 \
     --beta_sampling_times 1 > log.seed.42.txt 2>&1 &
 
