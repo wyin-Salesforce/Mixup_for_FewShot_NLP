@@ -2,7 +2,7 @@ export DOMAIN="kitchen & dining"
 export BETATIMES=15
 
 
-echo DOMAIN
+echo $DOMAIN
 
 CUDA_VISIBLE_DEVICES=0 python -u train_CLINC150.py \
     --task_name rte \
