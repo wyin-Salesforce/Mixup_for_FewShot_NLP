@@ -563,6 +563,10 @@ def main():
     if task_name not in processors:
         raise ValueError("Task not found: %s" % (task_name))
 
+
+
+    print(args.DomainName)
+    exit(0)
     processor = processors[task_name]()
     output_mode = output_modes[task_name]
 
