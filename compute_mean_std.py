@@ -2,8 +2,9 @@ import statistics
 
 
 
+
 # initializing list
-test_list = [87.77, 91.55, 86.44, 89.77, 80.44]
+test_list = [87.33, 92.44, 90.66, 90, 92.44]
 print('sum:', sum(test_list))
 average = round(sum(test_list)/len(test_list), 2)
 res = round(statistics.pstdev(test_list),2)
