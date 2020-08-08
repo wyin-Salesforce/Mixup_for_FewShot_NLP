@@ -1,4 +1,4 @@
-export DOMAIN="small talk"
+export DOMAIN="meta"
 export BETATIMES=15
 export SHOT=5
 
