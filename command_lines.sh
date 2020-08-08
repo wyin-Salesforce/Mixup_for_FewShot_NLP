@@ -1,4 +1,4 @@
-export DOMAIN= kitchen\ \&\ dining
+export DOMAIN= "kitchen & dining"
 export BETATIMES=15
 
 CUDA_VISIBLE_DEVICES=0 python -u train_CLINC150.py \
