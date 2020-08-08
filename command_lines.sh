@@ -1,4 +1,4 @@
-export DOMAIN="kitchen & dining"
+export DOMAIN="home"
 export BETATIMES=15
 export SHOT=5
 
