@@ -1,4 +1,4 @@
-export DOMAIN="banking"
+export DOMAIN="credit cards"
 export BETATIMES=15
 export SHOT=5
 
