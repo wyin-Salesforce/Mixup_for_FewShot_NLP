@@ -1,4 +1,4 @@
-export DOMAIN= "kitchen & dining"
+export DOMAIN_i= "kitchen & dining"
 export BETATIMES=15
 
 CUDA_VISIBLE_DEVICES=0 python -u train_CLINC150.py \
@@ -13,7 +13,7 @@ CUDA_VISIBLE_DEVICES=0 python -u train_CLINC150.py \
     --learning_rate 5e-6 \
     --max_seq_length 20 \
     --seed 42 \
-    --DomainName $DOMAIN \
+    --DomainName $DOMAIN_i \
     --kshot 3 \
     --beta_sampling_times 1 > log.seed.42.txt 2>&1 &
 
@@ -29,7 +29,7 @@ CUDA_VISIBLE_DEVICES=1 python -u train_CLINC150.py \
     --learning_rate 5e-6 \
     --max_seq_length 20 \
     --seed 16 \
-    --DomainName $DOMAIN \
+    --DomainName $DOMAIN_i \
     --kshot 3 \
     --beta_sampling_times 1 > log.seed.16.txt 2>&1 &
 
@@ -45,7 +45,7 @@ CUDA_VISIBLE_DEVICES=2 python -u train_CLINC150.py \
     --learning_rate 5e-6 \
     --max_seq_length 20 \
     --seed 32 \
-    --DomainName $DOMAIN \
+    --DomainName $DOMAIN_i \
     --kshot 3 \
     --beta_sampling_times 1 > log.seed.32.txt 2>&1 &
 
@@ -61,7 +61,7 @@ CUDA_VISIBLE_DEVICES=3 python -u train_CLINC150.py \
     --learning_rate 5e-6 \
     --max_seq_length 20 \
     --seed 64 \
-    --DomainName $DOMAIN \
+    --DomainName $DOMAIN_i \
     --kshot 3 \
     --beta_sampling_times 1 > log.seed.64.txt 2>&1 &
 
@@ -77,7 +77,7 @@ CUDA_VISIBLE_DEVICES=4 python -u train_CLINC150.py \
     --learning_rate 5e-6 \
     --max_seq_length 20 \
     --seed 128 \
-    --DomainName $DOMAIN \
+    --DomainName $DOMAIN_i \
     --kshot 3 \
     --beta_sampling_times 1 > log.seed.128.txt 2>&1 &
 
