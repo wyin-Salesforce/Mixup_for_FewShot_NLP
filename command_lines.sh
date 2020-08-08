@@ -1,4 +1,4 @@
-export DOMAIN="utility"
+export DOMAIN="work"
 export BETATIMES=15
 export SHOT=5
 
