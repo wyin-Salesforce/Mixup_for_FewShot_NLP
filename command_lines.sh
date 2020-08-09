@@ -1,4 +1,4 @@
-export DOMAIN="auto & commute"
+export DOMAIN="travel"
 export BETATIMES=15
 export SHOT=5
 
