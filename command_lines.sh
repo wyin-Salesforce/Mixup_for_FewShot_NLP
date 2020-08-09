@@ -1,4 +1,4 @@
-export DOMAIN="work"
+export DOMAIN="small talk"
 export BETATIMES=15
 export SHOT=5
 
