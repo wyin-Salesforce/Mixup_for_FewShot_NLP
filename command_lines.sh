@@ -1,4 +1,4 @@
-export DOMAIN="travel"
+export DOMAIN="utility"
 export BETATIMES=15
 export SHOT=5
 
