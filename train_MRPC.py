@@ -746,26 +746,31 @@ def main():
 
                         gold_label_ids = gold_label_ids
                         assert len(pred_label_ids) == len(gold_label_ids)
-                        hit_co = 0
+
+                        # overlap = 0
+
+                        overlap = 0
                         for k in range(len(pred_label_ids)):
-                            if pred_label_ids[k] == gold_label_ids[k]:
-                                hit_co +=1
-                        test_acc = hit_co/len(gold_label_ids)
+                            if pred_label_ids[k] == gold_label_ids[k] and gold_label_ids[k]==1:
+                                overlap +=1
+                        recall = overlap/(1e-6+sum(gold_label_ids))
+                        precision = overlap/(1e-6+sum(pred_label_ids))
+                        test_acc = 2*recall*precision/(1e-6+recall+precision)
 
                         if idd == 0: # this is dev
                             if test_acc > max_dev_acc:
                                 max_dev_acc = test_acc
-                                print('\ndev acc:', test_acc, ' max_dev_acc:', max_dev_acc, '\n')
+                                print('\ndev f1:', test_acc, ' max_dev_f1:', max_dev_acc, '\n')
 
                             else:
-                                print('\ndev acc:', test_acc, ' max_dev_acc:', max_dev_acc, '\n')
+                                print('\ndev f1:', test_acc, ' max_dev_f1:', max_dev_acc, '\n')
                                 break
                         else: # this is test
                             if test_acc > max_test_acc:
                                 max_test_acc = test_acc
 
                             final_test_performance = test_acc
-                            print('\ntest acc:', test_acc, ' max_test_acc:', max_test_acc, '\n')
+                            print('\ntest f1:', test_acc, ' max_test_f1:', max_test_acc, '\n')
         print('final_test_performance:', final_test_performance)
 
 
