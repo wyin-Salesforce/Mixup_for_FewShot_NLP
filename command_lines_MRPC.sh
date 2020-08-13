@@ -1,9 +1,9 @@
 export BETATIMES=15
-export SHOT=5
-export BATCHSIZE=5
-export EPOCHSIZE=50
-
-
+export SHOT=None
+export BATCHSIZE=16
+export EPOCHSIZE=20
+export LR=5e-6
+export LRMIXUP=1e-6
 
 CUDA_VISIBLE_DEVICES=0 python -u train_MRPC.py \
     --task_name rte \
@@ -14,7 +14,7 @@ CUDA_VISIBLE_DEVICES=0 python -u train_MRPC.py \
     --output_dir '' \
     --train_batch_size $BATCHSIZE \
     --eval_batch_size 32 \
-    --learning_rate 1e-6 \
+    --learning_rate $LR \
     --max_seq_length 128 \
     --seed 42 \
     --kshot $SHOT \
@@ -29,7 +29,7 @@ CUDA_VISIBLE_DEVICES=1 python -u train_MRPC.py \
     --output_dir '' \
     --train_batch_size $BATCHSIZE \
     --eval_batch_size 32 \
-    --learning_rate 1e-6 \
+    --learning_rate $LR \
     --max_seq_length 128 \
     --seed 16 \
     --kshot $SHOT \
@@ -44,7 +44,7 @@ CUDA_VISIBLE_DEVICES=2 python -u train_MRPC.py \
     --output_dir '' \
     --train_batch_size $BATCHSIZE \
     --eval_batch_size 32 \
-    --learning_rate 1e-6 \
+    --learning_rate $LR \
     --max_seq_length 128 \
     --seed 32 \
     --kshot $SHOT \
@@ -59,7 +59,7 @@ CUDA_VISIBLE_DEVICES=0 python -u train_MRPC.py \
     --output_dir '' \
     --train_batch_size $BATCHSIZE \
     --eval_batch_size 32 \
-    --learning_rate 1e-6 \
+    --learning_rate $LR \
     --max_seq_length 128 \
     --seed 64 \
     --kshot $SHOT \
@@ -75,7 +75,7 @@ CUDA_VISIBLE_DEVICES=1 python -u train_MRPC.py \
     --output_dir '' \
     --train_batch_size $BATCHSIZE \
     --eval_batch_size 32 \
-    --learning_rate 1e-6 \
+    --learning_rate $LR \
     --max_seq_length 128 \
     --seed 128 \
     --kshot $SHOT \
@@ -92,7 +92,7 @@ CUDA_VISIBLE_DEVICES=3 python -u train_MRPC.py \
     --output_dir '' \
     --train_batch_size $BATCHSIZE \
     --eval_batch_size 32 \
-    --learning_rate 1e-6 \
+    --learning_rate $LRMIXUP \
     --max_seq_length 128 \
     --seed 42 \
     --kshot $SHOT \
@@ -108,7 +108,7 @@ CUDA_VISIBLE_DEVICES=4 python -u train_MRPC.py \
     --output_dir '' \
     --train_batch_size $BATCHSIZE \
     --eval_batch_size 32 \
-    --learning_rate 1e-6 \
+    --learning_rate $LRMIXUP \
     --max_seq_length 128 \
     --seed 16 \
     --kshot $SHOT \
@@ -124,7 +124,7 @@ CUDA_VISIBLE_DEVICES=5 python -u train_MRPC.py \
     --output_dir '' \
     --train_batch_size $BATCHSIZE \
     --eval_batch_size 32 \
-    --learning_rate 1e-6 \
+    --learning_rate $LRMIXUP \
     --max_seq_length 128 \
     --seed 32 \
     --kshot $SHOT \
@@ -140,7 +140,7 @@ CUDA_VISIBLE_DEVICES=6 python -u train_MRPC.py \
     --output_dir '' \
     --train_batch_size $BATCHSIZE \
     --eval_batch_size 32 \
-    --learning_rate 1e-6 \
+    --learning_rate $LRMIXUP \
     --max_seq_length 128 \
     --seed 64 \
     --kshot $SHOT \
@@ -156,7 +156,7 @@ CUDA_VISIBLE_DEVICES=7 python -u train_MRPC.py \
     --output_dir '' \
     --train_batch_size $BATCHSIZE \
     --eval_batch_size 32 \
-    --learning_rate 1e-6 \
+    --learning_rate $LRMIXUP \
     --max_seq_length 128 \
     --seed 128 \
     --kshot $SHOT \
