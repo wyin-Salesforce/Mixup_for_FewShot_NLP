@@ -215,7 +215,7 @@ class RteProcessor(DataProcessor):
     def get_MRPC_dev_and_test(self, folder):
         filenames = ['dev.tsv', 'test.labeled.tsv']
         examples_list = []
-        for filename in enumerate(filenames):
+        for _, filename in enumerate(filenames):
             examples = []
             readfile = codecs.open(folder+filename, 'r', 'utf-8')
             line_co = 0
