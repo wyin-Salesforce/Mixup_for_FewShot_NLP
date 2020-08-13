@@ -75,28 +75,18 @@ class RobertaForSequenceClassification(nn.Module):
         # self.pair_hidden2score = nn.Linear(bert_hidden_dim, 1)
 
     def forward(self, input_ids, input_mask, input_seg, labels, lambda_value, is_train = False):
-        # single_train_input_ids, single_train_input_mask, single_train_segment_ids, single_train_label_ids = batch_single
         outputs_single = self.roberta_single(input_ids, input_mask, None)
         hidden_states_single = torch.tanh(self.hidden_layer_2(torch.tanh(self.hidden_layer_1(outputs_single[1])))) #(batch, hidden)
-        # print('hidden_states_single:', hidden_states_single)
         '''mixup'''
         if is_train:
             batch_size = input_ids.shape[0]#.cpu().numpy()
             hidden_states_single_v1 = hidden_states_single.repeat(batch_size, 1)
             hidden_states_single_v2 = torch.repeat_interleave(hidden_states_single, repeats=batch_size, dim=0)
             combined_pairs = lambda_value*hidden_states_single_v1+(1.0-lambda_value)*hidden_states_single_v2 #(batch*batch, hidden)
-            # combined_pairs = torch.cat([hidden_states_single_v1, hidden_states_single_v2],dim=1)#(batch*batch, 2*hidden)
             score_single = self.single_hidden2tag(combined_pairs) #(batch, tag_set)
             return score_single
-            '''dot reg'''
-            # dot_batch = torch.sigmoid(torch.mm(hidden_states_single,torch.transpose(hidden_states_single, 0,1))) #(batch, batch)
-            # remail_batch = dot_batch - torch.eye(batch_size).to(device)
-            # regular_loss = (remail_batch**2).sum()
-            # return score_single, regular_loss
-
         else:
             score_single = self.single_hidden2tag(hidden_states_single) #(batch, tag_set)
-            # score_single = self.single_hidden2tag(torch.cat([hidden_states_single, hidden_states_single],dim=1)) #(batch, tag_set)
             return score_single
 
 
@@ -205,7 +195,7 @@ class RteProcessor(DataProcessor):
             line_co+=1
         readfile.close()
         print('examples pos sizse:', len(examples_pos), ' neg size:', len(examples_neg))
-        if k_shot is None:
+        if k_shot> 99999:
             return examples_pos+examples_neg
         else:
             '''sampling'''
