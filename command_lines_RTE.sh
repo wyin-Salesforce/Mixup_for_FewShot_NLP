@@ -1,6 +1,7 @@
 export BETATIMES=15
 export SHOT=100000
 export BATCHSIZE=5
+export EPOCHSIZE=20
 
 
 
@@ -8,7 +9,7 @@ CUDA_VISIBLE_DEVICES=0 python -u train_RTE.py \
     --task_name rte \
     --do_train \
     --do_lower_case \
-    --num_train_epochs 100 \
+    --num_train_epochs $EPOCHSIZE \
     --data_dir '' \
     --output_dir '' \
     --train_batch_size $BATCHSIZE \
@@ -23,7 +24,7 @@ CUDA_VISIBLE_DEVICES=1 python -u train_RTE.py \
     --task_name rte \
     --do_train \
     --do_lower_case \
-    --num_train_epochs 100 \
+    --num_train_epochs $EPOCHSIZE \
     --data_dir '' \
     --output_dir '' \
     --train_batch_size $BATCHSIZE \
@@ -38,7 +39,7 @@ CUDA_VISIBLE_DEVICES=2 python -u train_RTE.py \
     --task_name rte \
     --do_train \
     --do_lower_case \
-    --num_train_epochs 100 \
+    --num_train_epochs $EPOCHSIZE \
     --data_dir '' \
     --output_dir '' \
     --train_batch_size $BATCHSIZE \
@@ -53,7 +54,7 @@ CUDA_VISIBLE_DEVICES=3 python -u train_RTE.py \
     --task_name rte \
     --do_train \
     --do_lower_case \
-    --num_train_epochs 100 \
+    --num_train_epochs $EPOCHSIZE \
     --data_dir '' \
     --output_dir '' \
     --train_batch_size $BATCHSIZE \
@@ -69,7 +70,7 @@ CUDA_VISIBLE_DEVICES=4 python -u train_RTE.py \
     --task_name rte \
     --do_train \
     --do_lower_case \
-    --num_train_epochs 100 \
+    --num_train_epochs $EPOCHSIZE \
     --data_dir '' \
     --output_dir '' \
     --train_batch_size $BATCHSIZE \
@@ -86,7 +87,7 @@ CUDA_VISIBLE_DEVICES=0 python -u train_RTE.py \
     --task_name rte \
     --do_train \
     --do_lower_case \
-    --num_train_epochs 100 \
+    --num_train_epochs $EPOCHSIZE \
     --data_dir '' \
     --output_dir '' \
     --train_batch_size $BATCHSIZE \
@@ -102,7 +103,7 @@ CUDA_VISIBLE_DEVICES=1 python -u train_RTE.py \
     --task_name rte \
     --do_train \
     --do_lower_case \
-    --num_train_epochs 100 \
+    --num_train_epochs $EPOCHSIZE \
     --data_dir '' \
     --output_dir '' \
     --train_batch_size $BATCHSIZE \
@@ -118,7 +119,7 @@ CUDA_VISIBLE_DEVICES=2 python -u train_RTE.py \
     --task_name rte \
     --do_train \
     --do_lower_case \
-    --num_train_epochs 100 \
+    --num_train_epochs $EPOCHSIZE \
     --data_dir '' \
     --output_dir '' \
     --train_batch_size $BATCHSIZE \
@@ -134,7 +135,7 @@ CUDA_VISIBLE_DEVICES=3 python -u train_RTE.py \
     --task_name rte \
     --do_train \
     --do_lower_case \
-    --num_train_epochs 100 \
+    --num_train_epochs $EPOCHSIZE \
     --data_dir '' \
     --output_dir '' \
     --train_batch_size $BATCHSIZE \
@@ -150,7 +151,7 @@ CUDA_VISIBLE_DEVICES=4 python -u train_RTE.py \
     --task_name rte \
     --do_train \
     --do_lower_case \
-    --num_train_epochs 100 \
+    --num_train_epochs $EPOCHSIZE \
     --data_dir '' \
     --output_dir '' \
     --train_batch_size $BATCHSIZE \
