@@ -557,7 +557,7 @@ def main():
 
 
 
-    train_examples = processor.get_MRPC_train_k_shot('/export/home/Dataset/glue_data/MRPC/')
+    train_examples = processor.get_MRPC_train_k_shot('/export/home/Dataset/glue_data/MRPC/', args.kshot)
     dev_examples, test_examples  = processor.get_MRPC_dev_and_test('/export/home/Dataset/glue_data/MRPC/')
     label_list = [0, 1]
     # train_examples = get_data_hulu_fewshot('train', 5)
