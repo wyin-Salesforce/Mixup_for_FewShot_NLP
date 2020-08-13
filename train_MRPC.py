@@ -747,7 +747,13 @@ def main():
                         gold_label_ids = gold_label_ids
                         assert len(pred_label_ids) == len(gold_label_ids)
 
-                        # overlap = 0
+                        hit_co=0
+                        for k in range(len(pred_label_ids)):
+                            if pred_label_ids[k] == gold_label_ids[k]:
+                                hit_co+=1
+                        acc = hit_co/len(gold_label_ids)
+
+
 
                         overlap = 0
                         for k in range(len(pred_label_ids)):
@@ -769,9 +775,9 @@ def main():
                             if test_acc > max_test_acc:
                                 max_test_acc = test_acc
 
-                            final_test_performance = test_acc
+                            final_test_performance = [acc, test_acc]
                             print('\ntest f1:', test_acc, ' max_test_f1:', max_test_acc, '\n')
-        print('final_test_performance:', final_test_performance)
+        print('final_test_performance[acc, f1]:', final_test_performance)
 
 
 
