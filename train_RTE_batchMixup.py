@@ -736,7 +736,13 @@ def main():
                 if use_mixup:
                     '''mixup loss'''
                     loss_origin = loss_fct(logits[:args.train_batch_size].view(-1, num_labels), label_ids.view(-1)) #batch_ize
-                    mixup_loss = torch.mm(softmax_lambda_vec, loss_origin.view(args.train_batch_size, -1)).view(-1) #(mix_time, 1)
+
+                    mixup_logits = logits[args.train_batch_size:].view(-1, num_labels) #(mixup_times, 2)
+                    mixup_logits_repeat = torch.repeat_interleave(mixup_logits, repeats=args.train_batch_size, dim=0) #(mixup_times*batch_size, 2)
+                    label_id_repeat = label_ids.view(-1).repeat(args.beta_sampling_times) #(0,1,2,..batch, 0, 1,2,3...batch)
+                    mixup_loss_repeat = loss_fct(mixup_logits_repeat.view(-1, num_labels), label_id_repeat.view(-1))
+                    mixup_loss = torch.sum(mixup_loss_repeat.view(args.beta_sampling_times, args.train_batch_size)*softmax_lambda_vec, dim=1) #(mixup_time)
+
                     loss_list = torch.cat([loss_origin, mixup_loss]) #(batch+mixup_times)
                     loss = loss_list.mean()
 
