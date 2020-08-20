@@ -731,11 +731,11 @@ def main():
                 '''use mixup???'''
                 use_mixup=args.use_mixup
                 logits = model(input_ids, input_mask, None, None, lambda_vec, is_train=use_mixup)
-                loss_fct = CrossEntropyLoss()
+                loss_fct = CrossEntropyLoss(reduction='none')
 
                 if use_mixup:
                     '''mixup loss'''
-                    loss_origin = loss_fct(logits[:args.train_batch_size].view(-1, num_labels), label_ids.view(-1), reduction='none') #batch_ize
+                    loss_origin = loss_fct(logits[:args.train_batch_size].view(-1, num_labels), label_ids.view(-1)) #batch_ize
                     mixup_loss = torch.mm(softmax_lambda_vec, loss_origin.view(args.train_batch_size, -1)).view(-1) #(mix_time, 1)
                     loss_list = torch.cat([loss_origin, mixup_loss]) #(batch+mixup_times)
                     loss = loss_list.mean()
