@@ -726,8 +726,6 @@ def main():
                 real_batch_size = input_ids.shape[0]
                 lambda_vec = torch.rand(args.beta_sampling_times, real_batch_size).to(device)
                 softmax_lambda_vec = nn.Softmax(dim=1)(lambda_vec) #(mix_time, batch_size)
-                print('softmax_lambda_vec:', softmax_lambda_vec)
-
                 '''use mixup???'''
                 use_mixup=args.use_mixup
                 logits = model(input_ids, input_mask, None, None, lambda_vec, is_train=use_mixup)
@@ -739,9 +737,7 @@ def main():
 
                     mixup_logits = logits[real_batch_size:].view(-1, num_labels) #(mixup_times, 2)
                     mixup_logits_repeat = torch.repeat_interleave(mixup_logits, repeats=real_batch_size, dim=0) #(mixup_times*batch_size, 2)
-                    print('mixup_logits_repeat:', mixup_logits_repeat)
                     label_id_repeat = label_ids.view(-1).repeat(args.beta_sampling_times) #(0,1,2,..batch, 0, 1,2,3...batch)
-                    print('label_id_repeat:', label_id_repeat)
                     mixup_loss_repeat = loss_fct(mixup_logits_repeat.view(-1, num_labels), label_id_repeat.view(-1))
                     mixup_loss = torch.sum(mixup_loss_repeat.view(args.beta_sampling_times, real_batch_size)*softmax_lambda_vec, dim=1) #(mixup_time)
 
