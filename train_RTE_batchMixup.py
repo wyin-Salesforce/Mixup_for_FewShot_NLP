@@ -837,7 +837,6 @@ def main():
                                 #     model.module if hasattr(model, "module") else model
                                 # )  # Take care of distributed/parallel training
                                 # store_transformers_models(model_to_save, tokenizer, '/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng', 'acc_'+str(max_dev_acc)+'.pt')
-
                             else:
                                 print('\ndev acc:', test_acc, ' max_dev_acc:', max_dev_acc, '\n')
                                 break
