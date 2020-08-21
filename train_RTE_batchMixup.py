@@ -744,14 +744,9 @@ def main():
 
                     # loss_list = torch.cat([loss_origin, mixup_loss]) #(batch+mixup_times)
                     # loss = loss_list.mean()
-                    mixup_alpha=0.8
+                    mixup_alpha=0.0
                     loss = mixup_alpha*loss_origin.mean()+(1-mixup_alpha)*mixup_loss.mean()
 
-                    # single_train_label_ids_v1 = label_ids.repeat(input_ids.shape[0])
-                    # single_train_label_ids_v2 = torch.repeat_interleave(label_ids.view(-1, 1), repeats=input_ids.shape[0], dim=0)
-                    # loss_v1 = loss_fct(logits.view(-1, num_labels), single_train_label_ids_v1.view(-1))
-                    # loss_v2 = loss_fct(logits.view(-1, num_labels), single_train_label_ids_v2.view(-1))
-                    # loss = lambda_vec*loss_v1+(1.0-lambda_vec)*loss_v2# + 1e-3*reg_loss
                 else:
                     loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1))
 
@@ -843,10 +838,11 @@ if __name__ == "__main__":
 
 '''
 mixup:
-CUDA_VISIBLE_DEVICES=6 python -u train_RTE_batchMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 100000 --use_mixup --beta_sampling_times 10
+CUDA_VISIBLE_DEVICES=0 python -u train_RTE_batchMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 100000 --use_mixup --beta_sampling_times 400
 
-no mixup:
-CUDA_VISIBLE_DEVICES=5 python -u train_RTE.py --task_name rte --do_train --do_lower_case --num_train_epochs 100 --data_dir '' --output_dir '' --train_batch_size 3 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 3 --beta_sampling_times 1
+CUDA_VISIBLE_DEVICES=1 python -u train_RTE_batchMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 100000 --use_mixup --beta_sampling_times 500
 
+CUDA_VISIBLE_DEVICES=2 python -u train_RTE_batchMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 100000 --use_mixup --beta_sampling_times 600
 
+CUDA_VISIBLE_DEVICES=3 python -u train_RTE_batchMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 100000 --use_mixup --beta_sampling_times 700
 '''
