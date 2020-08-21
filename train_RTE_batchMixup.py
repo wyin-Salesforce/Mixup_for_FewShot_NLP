@@ -59,6 +59,18 @@ logger = logging.getLogger(__name__)
 bert_hidden_dim = 1024
 pretrain_model_dir = 'roberta-large' #'roberta-large' , 'roberta-large-mnli', 'bert-large-uncased'
 
+def store_transformers_models(model, tokenizer, output_dir, flag_str):
+    '''
+    store the model
+    '''
+    output_dir+='/'+flag_str
+    # if not os.path.exists(output_dir):
+    #     os.makedirs(output_dir)
+    print('starting model storing....')
+    # model.save_pretrained(output_dir)
+    torch.save(model.state_dict(), output_dir)
+    # tokenizer.save_pretrained(output_dir)
+    print('store succeed')
 
 class RobertaForSequenceClassification(nn.Module):
     def __init__(self, tagset_size):
@@ -818,6 +830,11 @@ def main():
                             if test_acc > max_dev_acc:
                                 max_dev_acc = test_acc
                                 print('\ndev acc:', test_acc, ' max_dev_acc:', max_dev_acc, '\n')
+                                '''store the model, because we can test after a max_dev acc reached'''
+                                model_to_save = (
+                                    model.module if hasattr(model, "module") else model
+                                )  # Take care of distributed/parallel training
+                                store_transformers_models(model_to_save, tokenizer, '/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng', 'acc_'+str(max_dev_acc)+'.pt')
 
                             else:
                                 print('\ndev acc:', test_acc, ' max_dev_acc:', max_dev_acc, '\n')
