@@ -832,11 +832,11 @@ def main():
                             if test_acc > max_dev_acc:
                                 max_dev_acc = test_acc
                                 print('\ndev acc:', test_acc, ' max_dev_acc:', max_dev_acc, '\n')
-                                '''store the model, because we can test after a max_dev acc reached'''
-                                model_to_save = (
-                                    model.module if hasattr(model, "module") else model
-                                )  # Take care of distributed/parallel training
-                                store_transformers_models(model_to_save, tokenizer, '/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng', 'acc_'+str(max_dev_acc)+'.pt')
+                                # '''store the model, because we can test after a max_dev acc reached'''
+                                # model_to_save = (
+                                #     model.module if hasattr(model, "module") else model
+                                # )  # Take care of distributed/parallel training
+                                # store_transformers_models(model_to_save, tokenizer, '/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng', 'acc_'+str(max_dev_acc)+'.pt')
 
                             else:
                                 print('\ndev acc:', test_acc, ' max_dev_acc:', max_dev_acc, '\n')
