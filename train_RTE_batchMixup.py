@@ -734,7 +734,7 @@ def main():
                 model.train()
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, segment_ids, label_ids = batch
-                for _ in range(5):
+                for _ in range(15):
                     real_batch_size = input_ids.shape[0]
                     lambda_vec = torch.rand(args.beta_sampling_times, real_batch_size).to(device)
                     softmax_lambda_vec = nn.Softmax(dim=1)(lambda_vec) #(mix_time, batch_size)
