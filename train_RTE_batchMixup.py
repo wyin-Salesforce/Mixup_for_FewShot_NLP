@@ -723,9 +723,8 @@ def main():
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, segment_ids, label_ids = batch
 
-                # for _ in range(args.beta_sampling_times):
-                # lambda_vec = beta.rvs(0.4, 0.4, size=1)[0]
-                lambda_vec = torch.rand(args.beta_sampling_times, args.train_batch_size).to(device)
+                real_batch_size = input_ids.shape[0]
+                lambda_vec = torch.rand(args.beta_sampling_times, real_batch_size).to(device)
                 softmax_lambda_vec = nn.Softmax(dim=1)(lambda_vec) #(mix_time, batch_size)
 
                 '''use mixup???'''
@@ -735,13 +734,13 @@ def main():
 
                 if use_mixup:
                     '''mixup loss'''
-                    loss_origin = loss_fct(logits[:args.train_batch_size].view(-1, num_labels), label_ids.view(-1)) #batch_ize
+                    loss_origin = loss_fct(logits[:real_batch_size].view(-1, num_labels), label_ids.view(-1)) #batch_ize
 
-                    mixup_logits = logits[args.train_batch_size:].view(-1, num_labels) #(mixup_times, 2)
-                    mixup_logits_repeat = torch.repeat_interleave(mixup_logits, repeats=args.train_batch_size, dim=0) #(mixup_times*batch_size, 2)
+                    mixup_logits = logits[real_batch_size:].view(-1, num_labels) #(mixup_times, 2)
+                    mixup_logits_repeat = torch.repeat_interleave(mixup_logits, repeats=real_batch_size, dim=0) #(mixup_times*batch_size, 2)
                     label_id_repeat = label_ids.view(-1).repeat(args.beta_sampling_times) #(0,1,2,..batch, 0, 1,2,3...batch)
                     mixup_loss_repeat = loss_fct(mixup_logits_repeat.view(-1, num_labels), label_id_repeat.view(-1))
-                    mixup_loss = torch.sum(mixup_loss_repeat.view(args.beta_sampling_times, args.train_batch_size)*softmax_lambda_vec, dim=1) #(mixup_time)
+                    mixup_loss = torch.sum(mixup_loss_repeat.view(args.beta_sampling_times, real_batch_size)*softmax_lambda_vec, dim=1) #(mixup_time)
 
                     loss_list = torch.cat([loss_origin, mixup_loss]) #(batch+mixup_times)
                     loss = loss_list.mean()
@@ -842,7 +841,7 @@ if __name__ == "__main__":
 
 '''
 mixup:
-CUDA_VISIBLE_DEVICES=6 python -u train_RTE_batchMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 100 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 100000 --use_mixup --beta_sampling_times 10
+CUDA_VISIBLE_DEVICES=6 python -u train_RTE_batchMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 100000 --use_mixup --beta_sampling_times 10
 
 no mixup:
 CUDA_VISIBLE_DEVICES=5 python -u train_RTE.py --task_name rte --do_train --do_lower_case --num_train_epochs 100 --data_dir '' --output_dir '' --train_batch_size 3 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 3 --beta_sampling_times 1
