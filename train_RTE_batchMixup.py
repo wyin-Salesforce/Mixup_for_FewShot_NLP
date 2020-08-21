@@ -738,6 +738,7 @@ def main():
                 real_batch_size = input_ids.shape[0]
                 lambda_vec = torch.randint(-10000, 10000, (args.beta_sampling_times, real_batch_size)).to(device)
                 softmax_lambda_vec = nn.Softmax(dim=1)(1.0*lambda_vec) #(mix_time, batch_size)
+                print('softmax_lambda_vec:', softmax_lambda_vec)
                 # softmax_lambda_vec = lambda_vec/(1e-8+torch.sum(lambda_vec, dim=1, keepdim=True))
                 '''use mixup???'''
                 use_mixup=args.use_mixup
