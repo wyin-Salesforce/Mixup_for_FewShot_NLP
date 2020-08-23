@@ -835,7 +835,7 @@ def main():
                                 model_to_save = (
                                     model.module if hasattr(model, "module") else model
                                 )  # Take care of distributed/parallel training
-                                store_transformers_models(model_to_save, tokenizer, '/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng', str(args.kshot)+'_RTE_acc_'+str(max_dev_acc)+'.pt')
+                                store_transformers_models(model_to_save, tokenizer, '/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng', 'kshot_'str(args.kshot)+'_seed_'+str(args.seed)+'_RTE_acc_'+str(max_dev_acc)+'.pt')
                             else:
                                 print('\ndev acc:', test_acc, ' max_dev_acc:', max_dev_acc, '\n')
                                 break
