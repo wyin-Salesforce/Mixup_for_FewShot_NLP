@@ -624,7 +624,7 @@ def main():
 
     model = RobertaForSequenceClassification(num_labels)
     tokenizer = RobertaTokenizer.from_pretrained(pretrain_model_dir, do_lower_case=args.do_lower_case)
-    model.load_state_dict(torch.load('/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng/acc_0.8303249097472925.pt'))
+    model.load_state_dict(torch.load('/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng/3_RTE_acc_0.5090252707581228.pt'))
     model.to(device)
 
     param_optimizer = list(model.named_parameters())
