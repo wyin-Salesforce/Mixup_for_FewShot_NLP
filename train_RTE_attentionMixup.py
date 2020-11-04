@@ -743,26 +743,26 @@ def main():
                 eye_tensor = torch.eye(batch_size, batch_size).to(device)
                 '''use mixup???'''
                 use_mixup=args.use_mixup
-                logits, _ = model(input_ids, input_mask, None, None, eye_tensor, is_train=use_mixup)
                 loss_fct = CrossEntropyLoss(reduction='none')
+
 
                 if use_mixup:
                     '''mixup loss'''
-                    loss_origin = loss_fct(logits[:real_batch_size].view(-1, num_labels), label_ids.view(-1)) #batch_ize
+                    logits, softmax_lambda_vec = model(input_ids, input_mask, None, None, eye_tensor, is_train=use_mixup)
 
-                    mixup_logits = logits[real_batch_size:].view(-1, num_labels) #(mixup_times, 2)
+                    # loss_origin = loss_fct(logits[:real_batch_size].view(-1, num_labels), label_ids.view(-1)) #batch_ize
+
+                    mixup_logits = logits.view(-1, num_labels) #(mixup_times, 2)
                     mixup_logits_repeat = torch.repeat_interleave(mixup_logits, repeats=real_batch_size, dim=0) #(mixup_times*batch_size, 2)
-                    label_id_repeat = label_ids.view(-1).repeat(args.beta_sampling_times) #(0,1,2,..batch, 0, 1,2,3...batch)
+                    label_id_repeat = label_ids.view(-1).repeat(real_batch_size) #(0,1,2,..batch, 0, 1,2,3...batch)
                     mixup_loss_repeat = loss_fct(mixup_logits_repeat.view(-1, num_labels), label_id_repeat.view(-1))
-                    mixup_loss = torch.sum(mixup_loss_repeat.view(args.beta_sampling_times, real_batch_size)*softmax_lambda_vec, dim=1) #(mixup_time)
+                    mixup_loss = torch.sum(mixup_loss_repeat.view(real_batch_size, real_batch_size)*softmax_lambda_vec, dim=1) #(mixup_time)
 
-                    # loss_list = torch.cat([loss_origin, mixup_loss]) #(batch+mixup_times)
-                    # loss = loss_list.mean()
-                    mixup_alpha=0.0
-                    loss = mixup_alpha*loss_origin.mean()+(1-mixup_alpha)*mixup_loss.mean()
+                    loss = mixup_loss.mean()
 
                 else:
-                    loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1))
+                    logits  = model(input_ids, input_mask, None, None, eye_tensor, is_train=use_mixup)
+                    loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1)).mean()
 
                 if n_gpu > 1:
                     loss = loss.mean() # mean() to average on multi-gpu.
@@ -856,9 +856,7 @@ if __name__ == "__main__":
 
 '''
 mixup:
-CUDA_VISIBLE_DEVICES=0 python -u train_RTE_batchMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 100000 --use_mixup --beta_sampling_times 400
+CUDA_VISIBLE_DEVICES=0 python -u train_RTE_attentionMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 100000 --use_mixup --beta_sampling_times 400
 
 
-mixup for 3shot
-CUDA_VISIBLE_DEVICES=0 python -u train_RTE_batchMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 3 --use_mixup --beta_sampling_times 400
 '''
