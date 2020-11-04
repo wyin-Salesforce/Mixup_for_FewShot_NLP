@@ -740,7 +740,7 @@ def main():
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, segment_ids, label_ids = batch
                 real_batch_size = input_ids.shape[0]
-                eye_tensor = torch.eye(batch_size, batch_size).to(device)
+                eye_tensor = torch.eye(real_batch_size, real_batch_size).to(device)
                 '''use mixup???'''
                 use_mixup=args.use_mixup
                 loss_fct = CrossEntropyLoss(reduction='none')
