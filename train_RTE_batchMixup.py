@@ -727,7 +727,7 @@ def main():
 
         iter_co = 0
         final_test_performance = 0.0
-        for _ in trange(int(args.num_train_epochs), desc="Epoch"):
+        for epoch_i in trange(int(args.num_train_epochs), desc="Epoch"):
             tr_loss = 0
             nb_tr_examples, nb_tr_steps = 0, 0
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
@@ -740,8 +740,11 @@ def main():
                 # print('softmax_lambda_vec:', softmax_lambda_vec)
                 # softmax_lambda_vec = lambda_vec/(1e-8+torch.sum(lambda_vec, dim=1, keepdim=True))
                 '''use mixup???'''
-                use_mixup=args.use_mixup
-                logits = model(input_ids, input_mask, None, None, lambda_vec, is_train=use_mixup)
+                if epoch_i < 1:
+                    use_mixup=True
+                else:
+                    use_mixup=False
+                logits = model(input_ids, input_mask, None, None, softmax_lambda_vec, is_train=use_mixup)
                 loss_fct = CrossEntropyLoss(reduction='none')
 
                 if use_mixup:
@@ -760,7 +763,7 @@ def main():
                     loss = mixup_alpha*loss_origin.mean()+(1-mixup_alpha)*mixup_loss.mean()
 
                 else:
-                    loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1))
+                    loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1)).mean()
 
                 if n_gpu > 1:
                     loss = loss.mean() # mean() to average on multi-gpu.
@@ -831,11 +834,11 @@ def main():
                             if test_acc > max_dev_acc:
                                 max_dev_acc = test_acc
                                 print('\ndev acc:', test_acc, ' max_dev_acc:', max_dev_acc, '\n')
-                                '''store the model, because we can test after a max_dev acc reached'''
-                                model_to_save = (
-                                    model.module if hasattr(model, "module") else model
-                                )  # Take care of distributed/parallel training
-                                store_transformers_models(model_to_save, tokenizer, '/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng', 'kshot_'+str(args.kshot)+'_seed_'+str(args.seed)+'_RTE_acc_'+str(max_dev_acc)+'.pt')
+                                # '''store the model, because we can test after a max_dev acc reached'''
+                                # model_to_save = (
+                                #     model.module if hasattr(model, "module") else model
+                                # )  # Take care of distributed/parallel training
+                                # store_transformers_models(model_to_save, tokenizer, '/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng', 'kshot_'+str(args.kshot)+'_seed_'+str(args.seed)+'_RTE_acc_'+str(max_dev_acc)+'.pt')
                             else:
                                 print('\ndev acc:', test_acc, ' max_dev_acc:', max_dev_acc, '\n')
                                 break
