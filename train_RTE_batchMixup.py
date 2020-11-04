@@ -740,9 +740,11 @@ def main():
                 # print('softmax_lambda_vec:', softmax_lambda_vec)
                 # softmax_lambda_vec = lambda_vec/(1e-8+torch.sum(lambda_vec, dim=1, keepdim=True))
                 '''use mixup???'''
-                if epoch_i < 1:
+                if epoch_i < 20:
+                    '''pretraining'''
                     use_mixup=True
                 else:
+                    '''fine-tuning'''
                     use_mixup=False
                 logits = model(input_ids, input_mask, None, None, softmax_lambda_vec, is_train=use_mixup)
                 loss_fct = CrossEntropyLoss(reduction='none')
