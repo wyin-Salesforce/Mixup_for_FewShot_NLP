@@ -763,8 +763,8 @@ def main():
                     # mixup_alpha=0.0
                     # loss = mixup_alpha*loss_origin.mean()+(1.0-mixup_alpha)*mixup_loss.mean()
                     print(epoch_i, step, ' loss:', loss.item())
-                    if step == 10:
-                        exit(0)
+                    # if step == 10:
+                    #     exit(0)
 
                 else:
                     loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1)).mean()
