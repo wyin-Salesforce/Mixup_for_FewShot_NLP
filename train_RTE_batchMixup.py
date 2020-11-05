@@ -90,22 +90,15 @@ class RobertaForSequenceClassification(nn.Module):
         '''
         outputs_single = self.roberta_single(input_ids, input_mask, None)
         hidden_states_single = torch.tanh(self.hidden_layer_2(torch.tanh(self.hidden_layer_1(outputs_single[1])))) #(batch, hidden)
-        # print('hidden_states_single:', hidden_states_single)
+        print('hidden_states_single:', hidden_states_single)
         '''mixup'''
         if is_train:
             batch_size = input_ids.shape[0]#.cpu().numpy()
             mixed_reps_matrix = torch.mm(lambda_value, hidden_states_single) #(mix_times, hidden_dim)
-            # hidden_states_single_v1 = hidden_states_single.repeat(batch_size, 1)
-            # hidden_states_single_v2 = torch.repeat_interleave(hidden_states_single, repeats=batch_size, dim=0)
-            # combined_pairs = lambda_value*hidden_states_single_v1+(1.0-lambda_value)*hidden_states_single_v2 #(batch*batch, hidden)
+            print('mixed_reps_matrix:', mixed_reps_matrix)
             combined_pairs = torch.cat([hidden_states_single, mixed_reps_matrix],dim=0)#(batch+mix_times, hidden)
             score_single = self.single_hidden2tag(combined_pairs) #(batch, tag_set)
             return score_single
-            '''dot reg'''
-            # dot_batch = torch.sigmoid(torch.mm(hidden_states_single,torch.transpose(hidden_states_single, 0,1))) #(batch, batch)
-            # remail_batch = dot_batch - torch.eye(batch_size).to(device)
-            # regular_loss = (remail_batch**2).sum()
-            # return score_single, regular_loss
 
         else:
             score_single = self.single_hidden2tag(hidden_states_single) #(batch, tag_set)
