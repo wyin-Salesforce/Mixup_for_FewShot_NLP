@@ -44,9 +44,7 @@ from transformers.tokenization_roberta import RobertaTokenizer
 from transformers.optimization import AdamW
 from transformers.modeling_roberta import RobertaModel#RobertaForSequenceClassification
 
-# from transformers.modeling_bert import BertModel
-# from transformers.tokenization_bert import BertTokenizer
-# from bert_common_functions import store_transformers_models
+torch.set_printoptions(threshold=5000)
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt = '%m/%d/%Y %H:%M:%S',
@@ -765,7 +763,7 @@ def main():
                     mixup_alpha=0.0
                     loss = mixup_alpha*loss_origin.mean()+(1.0-mixup_alpha)*mixup_loss.mean()
                     print(epoch_i, step, ' loss:', loss.item())
-                    if step == 52:
+                    if step == 10:
                         exit(0)
 
                 else:
