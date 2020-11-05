@@ -759,9 +759,9 @@ def main():
                     mixup_loss = torch.sum(mixup_loss_repeat.view(args.beta_sampling_times, real_batch_size)*softmax_lambda_vec, dim=1) #(mixup_time)
                     print(epoch_i, step, ' mixup_loss:', mixup_loss)
                     # loss_list = torch.cat([loss_origin, mixup_loss]) #(batch+mixup_times)
-                    loss = mixup_loss.mean()
-                    # mixup_alpha=0.0
-                    # loss = mixup_alpha*loss_origin.mean()+(1.0-mixup_alpha)*mixup_loss.mean()
+                    # loss = mixup_loss.mean()
+                    mixup_alpha=0.0
+                    loss = mixup_alpha*loss_origin.mean()+(1.0-mixup_alpha)*mixup_loss.mean()
                     print(epoch_i, step, ' loss:', loss.item())
                     # if step == 10:
                     #     exit(0)
