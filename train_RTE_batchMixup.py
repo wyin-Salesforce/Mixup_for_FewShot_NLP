@@ -757,13 +757,16 @@ def main():
                     mixup_logits_repeat = torch.repeat_interleave(mixup_logits, repeats=real_batch_size, dim=0) #(mixup_times*batch_size, 2)
                     label_id_repeat = label_ids.view(-1).repeat(args.beta_sampling_times) #(0,1,2,..batch, 0, 1,2,3...batch)
                     mixup_loss_repeat = loss_fct(mixup_logits_repeat.view(-1, num_labels), label_id_repeat.view(-1))
+                    print(epoch_i, step, ' mixup_loss_repeat:', mixup_loss_repeat)
                     mixup_loss = torch.sum(mixup_loss_repeat.view(args.beta_sampling_times, real_batch_size)*softmax_lambda_vec, dim=1) #(mixup_time)
-
+                    print(epoch_i, step, ' mixup_loss:', mixup_loss)
                     # loss_list = torch.cat([loss_origin, mixup_loss]) #(batch+mixup_times)
                     # loss = loss_list.mean()
                     mixup_alpha=0.0
                     loss = mixup_alpha*loss_origin.mean()+(1-mixup_alpha)*mixup_loss.mean()
                     print(epoch_i, step, ' loss:', loss.item())
+                    if step == 52:
+                        exit(0)
 
                 else:
                     loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1)).mean()
