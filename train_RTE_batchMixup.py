@@ -763,7 +763,7 @@ def main():
                     # loss_list = torch.cat([loss_origin, mixup_loss]) #(batch+mixup_times)
                     # loss = mixup_loss.mean()
                     mixup_alpha=0.0
-                    loss = mixup_alpha*loss_origin.mean()+(1-mixup_alpha)*mixup_loss.mean()
+                    loss = mixup_alpha*loss_origin.mean()+(1.0-mixup_alpha)*mixup_loss.mean()
                     print(epoch_i, step, ' loss:', loss.item())
                     if step == 52:
                         exit(0)
