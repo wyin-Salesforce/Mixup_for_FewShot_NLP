@@ -596,8 +596,7 @@ def main():
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
-    if n_gpu > 0:
-        torch.cuda.manual_seed_all(args.seed)
+    torch.cuda.manual_seed_all(args.seed)
 
     if not args.do_train and not args.do_eval:
         raise ValueError("At least one of `do_train` or `do_eval` must be True.")
@@ -737,7 +736,7 @@ def main():
                 real_batch_size = input_ids.shape[0]
                 lambda_vec = torch.rand(args.beta_sampling_times, real_batch_size).to(device)
                 softmax_lambda_vec = nn.Softmax(dim=1)(lambda_vec) #(mix_time, batch_size)
-                print('softmax_lambda_vec:', softmax_lambda_vec)
+                # print('softmax_lambda_vec:', softmax_lambda_vec)
                 # softmax_lambda_vec = lambda_vec/(1e-8+torch.sum(lambda_vec, dim=1, keepdim=True))
                 '''use mixup???'''
                 if epoch_i < 20:
