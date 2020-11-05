@@ -43,8 +43,8 @@ from preprocess_CLINC150 import load_CLINC150_with_specific_domain_sequence
 from transformers.tokenization_roberta import RobertaTokenizer
 from transformers.optimization import AdamW
 from transformers.modeling_roberta import RobertaModel#RobertaForSequenceClassification
+torch.set_printoptions(precision=10)
 
-torch.set_printoptions(profile="full")
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt = '%m/%d/%Y %H:%M:%S',
@@ -734,7 +734,7 @@ def main():
                 real_batch_size = input_ids.shape[0]
                 lambda_vec = torch.rand(args.beta_sampling_times, real_batch_size).to(device)
                 softmax_lambda_vec = nn.Softmax(dim=1)(lambda_vec) #(mix_time, batch_size)
-                # print(epoch_i, step, ' softmax_lambda_vec:', softmax_lambda_vec)
+                print(epoch_i, step, ' softmax_lambda_vec:', softmax_lambda_vec)
                 # softmax_lambda_vec = lambda_vec/(1e-8+torch.sum(lambda_vec, dim=1, keepdim=True))
                 '''use mixup???'''
                 if epoch_i < 20:
@@ -744,7 +744,7 @@ def main():
                     '''fine-tuning'''
                     use_mixup=False
                 logits = model(input_ids, input_mask, None, None, softmax_lambda_vec, is_train=use_mixup)
-                # print(epoch_i, step, ' logits:', logits)
+                print(epoch_i, step, ' logits:', logits)
                 loss_fct = CrossEntropyLoss(reduction='none')
 
                 if use_mixup:
@@ -755,16 +755,16 @@ def main():
                     mixup_logits_repeat = torch.repeat_interleave(mixup_logits, repeats=real_batch_size, dim=0) #(mixup_times*batch_size, 2)
                     label_id_repeat = label_ids.view(-1).repeat(args.beta_sampling_times) #(0,1,2,..batch, 0, 1,2,3...batch)
                     mixup_loss_repeat = loss_fct(mixup_logits_repeat.view(-1, num_labels), label_id_repeat.view(-1))
-                    # print(epoch_i, step, ' mixup_loss_repeat:', mixup_loss_repeat)
+                    print(epoch_i, step, ' mixup_loss_repeat:', mixup_loss_repeat)
                     mixup_loss = torch.sum(mixup_loss_repeat.view(args.beta_sampling_times, real_batch_size)*softmax_lambda_vec, dim=1) #(mixup_time)
-                    # print(epoch_i, step, ' mixup_loss:', mixup_loss)
+                    print(epoch_i, step, ' mixup_loss:', mixup_loss)
                     # loss_list = torch.cat([loss_origin, mixup_loss]) #(batch+mixup_times)
                     loss = mixup_loss.mean()
-                    # mixup_alpha=0.0
+                    mixup_alpha=0.0
                     # loss = mixup_alpha*loss_origin.mean()+(1.0-mixup_alpha)*mixup_loss.mean()
-                    # print(epoch_i, step, ' loss:', loss.item())
-                    # if step == 10:
-                    #     exit(0)
+                    print(epoch_i, step, ' loss:', loss.item())
+                    if step == 10:
+                        exit(0)
 
                 else:
                     loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1)).mean()
