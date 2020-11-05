@@ -741,7 +741,7 @@ def main():
                 '''use mixup???'''
                 if epoch_i < 20:
                     '''pretraining'''
-                    use_mixup=True
+                    use_mixup=False
                 else:
                     '''fine-tuning'''
                     use_mixup=False
