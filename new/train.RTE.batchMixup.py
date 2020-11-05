@@ -82,7 +82,7 @@ class RobertaForSequenceClassification(nn.Module):
         # self.roberta_pair = RobertaModel.from_pretrained(pretrain_model_dir)
         # self.pair_hidden2score = nn.Linear(bert_hidden_dim, 1)
 
-    def forward(self, input_ids, input_mask, input_seg, labels, lambda_matrix, lambda_value, is_train = False):
+    def forward(self, input_ids, input_mask, labels, lambda_matrix, lambda_value, is_train = False):
         '''
         lambda_matrix: (mix_times, batch_size), already after softmax
         is_train: pretrain, finetune, test
@@ -721,7 +721,7 @@ def main():
                     use_mixup='pretrain'
                     lambda_vec = torch.rand(args.batch_mix_times, real_batch_size).to(device)
                     lambda_matrix = nn.Softmax(dim=1)(lambda_vec) #(mix_time, batch_size)
-                    logits = model(input_ids, input_mask, None, None, lambda_matrix, None, is_train=use_mixup)
+                    logits = model(input_ids, input_mask, None, lambda_matrix, None, is_train=use_mixup)
                     loss_fct = CrossEntropyLoss(reduction='none')
 
                     mixup_logits = logits.view(-1, num_labels) #(mixup_times, 2)
@@ -738,7 +738,7 @@ def main():
                     use_mixup='finetune'
                     for _ in range(args.beta_sampling_times):
                         lambda_vec = beta.rvs(0.4, 0.4, size=1)[0]
-                        logits = model(input_ids, input_mask, None, None, None, lambda_vec, is_train=use_mixup)
+                        logits = model(input_ids, input_mask, label_ids, None, lambda_vec, is_train=use_mixup)
                         loss = logits
 
                         loss.backward()
@@ -774,7 +774,7 @@ def main():
                     gold_label_ids+=list(label_ids.detach().cpu().numpy())
 
                     with torch.no_grad():
-                        logits = model(input_ids, input_mask, None, None, None, None, is_train='test')
+                        logits = model(input_ids, input_mask, None, None, None, is_train='test')
                     if len(preds) == 0:
                         preds.append(logits.detach().cpu().numpy())
                     else:
