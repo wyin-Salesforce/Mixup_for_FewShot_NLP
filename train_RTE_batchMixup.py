@@ -89,6 +89,7 @@ class RobertaForSequenceClassification(nn.Module):
         lambda_value: (mix_times, batch_size), already after softmax
         '''
         outputs_single = self.roberta_single(input_ids, input_mask, None)
+        print('outputs_single:', outputs_single[1])
         hidden_states_single = torch.tanh(self.hidden_layer_2(torch.tanh(self.hidden_layer_1(outputs_single[1])))) #(batch, hidden)
         print('hidden_states_single:', hidden_states_single)
         '''mixup'''
