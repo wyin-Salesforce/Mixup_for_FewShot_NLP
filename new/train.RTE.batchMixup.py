@@ -716,7 +716,7 @@ def main():
                 real_batch_size = input_ids.shape[0]
 
                 '''use mixup???'''
-                if epoch_i < 1:
+                if epoch_i < 20:
                     '''pretraining'''
                     use_mixup='pretrain'
                     lambda_vec = torch.rand(args.batch_mix_times, real_batch_size).to(device)
