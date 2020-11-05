@@ -736,7 +736,7 @@ def main():
                 real_batch_size = input_ids.shape[0]
                 lambda_vec = torch.rand(args.beta_sampling_times, real_batch_size).to(device)
                 softmax_lambda_vec = nn.Softmax(dim=1)(lambda_vec) #(mix_time, batch_size)
-                print('softmax_lambda_vec:', softmax_lambda_vec)
+                print(epoch_i, step, ' softmax_lambda_vec:', softmax_lambda_vec)
                 # softmax_lambda_vec = lambda_vec/(1e-8+torch.sum(lambda_vec, dim=1, keepdim=True))
                 '''use mixup???'''
                 if epoch_i < 20:
@@ -746,7 +746,7 @@ def main():
                     '''fine-tuning'''
                     use_mixup=False
                 logits = model(input_ids, input_mask, None, None, softmax_lambda_vec, is_train=use_mixup)
-                print('logits:', logits)
+                print(epoch_i, step, ' logits:', logits)
                 loss_fct = CrossEntropyLoss(reduction='none')
 
                 if use_mixup:
@@ -763,7 +763,7 @@ def main():
                     # loss = loss_list.mean()
                     mixup_alpha=0.0
                     loss = mixup_alpha*loss_origin.mean()+(1-mixup_alpha)*mixup_loss.mean()
-                    print('loss:', loss.item())
+                    print(epoch_i, step, ' loss:', loss.item())
 
                 else:
                     loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1)).mean()
