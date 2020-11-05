@@ -36,8 +36,6 @@ from scipy.stats import beta
 from torch.nn import CrossEntropyLoss, MSELoss
 from scipy.special import softmax
 from mixup import mixup_layer
-from preprocess_CLINC150 import load_CLINC150_with_specific_domain_sequence
-
 from transformers.tokenization_roberta import RobertaTokenizer
 from transformers.optimization import AdamW
 from transformers.modeling_roberta import RobertaModel#RobertaForSequenceClassification
@@ -462,22 +460,11 @@ def main():
     parser = argparse.ArgumentParser()
 
     ## Required parameters
-    parser.add_argument("--data_dir",
-                        default=None,
-                        type=str,
-                        required=True,
-                        help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
     parser.add_argument("--task_name",
                         default=None,
                         type=str,
                         required=True,
                         help="The name of the task to train.")
-    parser.add_argument("--output_dir",
-                        default=None,
-                        type=str,
-                        required=True,
-                        help="The output directory where the model predictions and checkpoints will be written.")
-
     ## Other parameters
     parser.add_argument("--cache_dir",
                         default="",
@@ -525,9 +512,6 @@ def main():
                         help="Proportion of training to perform linear learning rate warmup for. "
                              "E.g., 0.1 = 10%% of training.")
     parser.add_argument("--no_cuda",
-                        action='store_true',
-                        help="Whether not to use CUDA when available")
-    parser.add_argument("--use_mixup",
                         action='store_true',
                         help="Whether not to use CUDA when available")
     parser.add_argument("--local_rank",
@@ -624,8 +608,6 @@ def main():
     dev_examples = processor.get_RTE_as_dev('/export/home/Dataset/glue_data/RTE/dev.tsv')
     test_examples = processor.get_RTE_as_test('/export/home/Dataset/RTE/test_RTE_1235.txt')
     label_list = ["entailment", "not_entailment"]
-    # train_examples = get_data_hulu_fewshot('train', 5)
-    # train_examples, dev_examples, test_examples, label_list = load_CLINC150_with_specific_domain_sequence(args.DomainName, args.kshot, augment=False)
     num_labels = len(label_list)
     print('num_labels:', num_labels, 'training size:', len(train_examples), 'dev size:', len(dev_examples), 'test size:', len(test_examples))
 
@@ -838,9 +820,9 @@ if __name__ == "__main__":
 
 '''
 mixup:
-CUDA_VISIBLE_DEVICES=0 python -u train.RTE.batchMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 100000 --use_mixup --batch_mix_times 400 --beta_sampling_times 15
+CUDA_VISIBLE_DEVICES=0 python -u train.RTE.batchMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 100000 --batch_mix_times 400 --beta_sampling_times 15
 
 
 mixup for 3shot
-CUDA_VISIBLE_DEVICES=0 python -u train_RTE_batchMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 3 --use_mixup --beta_sampling_times 400
+CUDA_VISIBLE_DEVICES=0 python -u train_RTE_batchMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 3 --beta_sampling_times 400
 '''
