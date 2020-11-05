@@ -35,9 +35,7 @@ from tqdm import tqdm, trange
 from scipy.stats import beta
 from torch.nn import CrossEntropyLoss, MSELoss
 from scipy.special import softmax
-# from scipy.stats import pearsonr, spearmanr
-# from sklearn.metrics import matthews_corrcoef, f1_score
-
+from mixup import mixup_layer
 from preprocess_CLINC150 import load_CLINC150_with_specific_domain_sequence
 
 from transformers.tokenization_roberta import RobertaTokenizer
@@ -59,6 +57,18 @@ logger = logging.getLogger(__name__)
 bert_hidden_dim = 1024
 pretrain_model_dir = 'roberta-large' #'roberta-large' , 'roberta-large-mnli', 'bert-large-uncased'
 
+def store_transformers_models(model, tokenizer, output_dir, flag_str):
+    '''
+    store the model
+    '''
+    output_dir+='/'+flag_str
+    # if not os.path.exists(output_dir):
+    #     os.makedirs(output_dir)
+    print('starting model storing....')
+    # model.save_pretrained(output_dir)
+    torch.save(model.state_dict(), output_dir)
+    # tokenizer.save_pretrained(output_dir)
+    print('store succeed')
 
 class RobertaForSequenceClassification(nn.Module):
     def __init__(self, tagset_size):
@@ -74,29 +84,28 @@ class RobertaForSequenceClassification(nn.Module):
         # self.roberta_pair = RobertaModel.from_pretrained(pretrain_model_dir)
         # self.pair_hidden2score = nn.Linear(bert_hidden_dim, 1)
 
-    def forward(self, input_ids, input_mask, input_seg, labels, lambda_value, is_train = False):
-        # single_train_input_ids, single_train_input_mask, single_train_segment_ids, single_train_label_ids = batch_single
+    def forward(self, input_ids, input_mask, input_seg, labels, lambda_matrix, lambda_value, is_train = False):
+        '''
+        lambda_matrix: (mix_times, batch_size), already after softmax
+        is_train: pretrain, finetune, test
+        '''
         outputs_single = self.roberta_single(input_ids, input_mask, None)
         hidden_states_single = torch.tanh(self.hidden_layer_2(torch.tanh(self.hidden_layer_1(outputs_single[1])))) #(batch, hidden)
         # print('hidden_states_single:', hidden_states_single)
         '''mixup'''
-        if is_train:
+        if is_train == 'pretrain':
             batch_size = input_ids.shape[0]#.cpu().numpy()
-            hidden_states_single_v1 = hidden_states_single.repeat(batch_size, 1)
-            hidden_states_single_v2 = torch.repeat_interleave(hidden_states_single, repeats=batch_size, dim=0)
-            combined_pairs = lambda_value*hidden_states_single_v1+(1.0-lambda_value)*hidden_states_single_v2 #(batch*batch, hidden)
-            # combined_pairs = torch.cat([hidden_states_single_v1, hidden_states_single_v2],dim=1)#(batch*batch, 2*hidden)
-            score_single = self.single_hidden2tag(combined_pairs) #(batch, tag_set)
+            mixed_reps_matrix = torch.mm(lambda_matrix, hidden_states_single) #(mix_times, hidden_dim)
+            score_single = self.single_hidden2tag(mixed_reps_matrix) #(batch, tag_set)
             return score_single
-            '''dot reg'''
-            # dot_batch = torch.sigmoid(torch.mm(hidden_states_single,torch.transpose(hidden_states_single, 0,1))) #(batch, batch)
-            # remail_batch = dot_batch - torch.eye(batch_size).to(device)
-            # regular_loss = (remail_batch**2).sum()
-            # return score_single, regular_loss
+        elif is_train == 'finetune':
+            '''mixup_results might be loss (in training) or logits (in testing)'''
+            mixup_results = mixup_layer(hidden_states_single, labels, self.tagset_size, lambda_value, self.single_hidden2tag, is_train=True, use_mixup=True)
+            return mixup_results
 
         else:
+            '''test'''
             score_single = self.single_hidden2tag(hidden_states_single) #(batch, tag_set)
-            # score_single = self.single_hidden2tag(torch.cat([hidden_states_single, hidden_states_single],dim=1)) #(batch, tag_set)
             return score_single
 
 
@@ -229,7 +238,7 @@ class RteProcessor(DataProcessor):
         readfile.close()
         print('loaded  entail size:', len(examples_entail), 'non-entail size:', len(examples_non_entail))
         '''sampling'''
-        if k_shot  == 0:
+        if k_shot ==0:
             return examples_entail+examples_non_entail
         else:
             sampled_examples = random.sample(examples_entail, k_shot)+random.sample(examples_non_entail, k_shot)
@@ -531,7 +540,11 @@ def main():
                         help="random seed for initialization")
     parser.add_argument('--beta_sampling_times',
                         type=int,
-                        default=10,
+                        default=15,
+                        help="random seed for initialization")
+    parser.add_argument('--batch_mix_times',
+                        type=int,
+                        default=400,
                         help="random seed for initialization")
     parser.add_argument('--gradient_accumulation_steps',
                         type=int,
@@ -624,7 +637,6 @@ def main():
 
     model = RobertaForSequenceClassification(num_labels)
     tokenizer = RobertaTokenizer.from_pretrained(pretrain_model_dir, do_lower_case=args.do_lower_case)
-    # model.load_state_dict(torch.load('/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng/kshot_3_seed_16_RTE_acc_0.5523465703971119.pt'))
     model.to(device)
 
     param_optimizer = list(model.named_parameters())
@@ -712,111 +724,111 @@ def main():
 
         iter_co = 0
         final_test_performance = 0.0
-        for _ in trange(int(args.num_train_epochs), desc="Epoch"):
+        for epoch_i in trange(int(args.num_train_epochs), desc="Epoch"):
             tr_loss = 0
             nb_tr_examples, nb_tr_steps = 0, 0
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
                 model.train()
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, segment_ids, label_ids = batch
+                real_batch_size = input_ids.shape[0]
 
-                for _ in range(args.beta_sampling_times):
-                    lambda_vec = beta.rvs(0.4, 0.4, size=1)[0]
+                '''use mixup???'''
+                if epoch_i < 1:
+                    '''pretraining'''
+                    use_mixup='pretrain'
+                    lambda_vec = torch.rand(args.batch_mix_times, real_batch_size).to(device)
+                    lambda_matrix = nn.Softmax(dim=1)(lambda_vec) #(mix_time, batch_size)
+                    logits = model(input_ids, input_mask, None, None, lambda_matrix, None, is_train=use_mixup)
+                    loss_fct = CrossEntropyLoss(reduction='none')
 
-                    '''use mixup???'''
-                    use_mixup=args.use_mixup
-                    logits = model(input_ids, input_mask, None, None, lambda_vec, is_train=use_mixup)
-                    loss_fct = CrossEntropyLoss()
-
-                    if use_mixup:
-                        '''mixup loss'''
-                        single_train_label_ids_v1 = label_ids.repeat(input_ids.shape[0])
-                        single_train_label_ids_v2 = torch.repeat_interleave(label_ids.view(-1, 1), repeats=input_ids.shape[0], dim=0)
-                        loss_v1 = loss_fct(logits.view(-1, num_labels), single_train_label_ids_v1.view(-1))
-                        loss_v2 = loss_fct(logits.view(-1, num_labels), single_train_label_ids_v2.view(-1))
-                        loss = lambda_vec*loss_v1+(1.0-lambda_vec)*loss_v2# + 1e-3*reg_loss
-                    else:
-                        loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1))
-
-                    if n_gpu > 1:
-                        loss = loss.mean() # mean() to average on multi-gpu.
-                    if args.gradient_accumulation_steps > 1:
-                        loss = loss / args.gradient_accumulation_steps
-
+                    mixup_logits = logits.view(-1, num_labels) #(mixup_times, 2)
+                    mixup_logits_repeat = torch.repeat_interleave(mixup_logits, repeats=real_batch_size, dim=0) #(mixup_times*batch_size, 2)
+                    label_id_repeat = label_ids.view(-1).repeat(args.batch_mix_times) #(0,1,2,..batch, 0, 1,2,3...batch)
+                    mixup_loss_repeat = loss_fct(mixup_logits_repeat.view(-1, num_labels), label_id_repeat.view(-1))
+                    mixup_loss = torch.sum(mixup_loss_repeat.view(args.batch_mix_times, real_batch_size)*lambda_matrix, dim=1) #(mixup_time)
+                    loss = mixup_loss.mean()
                     loss.backward()
-
-                    tr_loss += loss.item()
-                    nb_tr_examples += input_ids.size(0)
-                    nb_tr_steps += 1
-
                     optimizer.step()
                     optimizer.zero_grad()
-                global_step += 1
-                iter_co+=1
-                # if iter_co %20==0:
-                if iter_co % len(train_dataloader)==0:
-                    '''
-                    start evaluate on dev set after this epoch
-                    '''
-                    model.eval()
+                else:
+                    '''fine-tuning'''
+                    use_mixup='finetune'
+                    for _ in range(args.beta_sampling_times):
+                        lambda_vec = beta.rvs(0.4, 0.4, size=1)[0]
+                        logits = model(input_ids, input_mask, None, None, None, lambda_vec, is_train=use_mixup)
+                        loss = logits
 
-                    for idd, dev_or_test_dataloader in enumerate([dev_dataloader, test_dataloader]):
+                        loss.backward()
+                        optimizer.step()
+                        optimizer.zero_grad()
+
+            '''
+            start evaluate on dev set after this epoch
+            '''
+            model.eval()
+
+            for idd, dev_or_test_dataloader in enumerate([dev_dataloader, test_dataloader]):
 
 
-                        if idd == 0:
-                            logger.info("***** Running dev *****")
-                            logger.info("  Num examples = %d", len(dev_examples))
-                        else:
-                            logger.info("***** Running test *****")
-                            logger.info("  Num examples = %d", len(test_examples))
-                        # logger.info("  Batch size = %d", args.eval_batch_size)
+                if idd == 0:
+                    logger.info("***** Running dev *****")
+                    logger.info("  Num examples = %d", len(dev_examples))
+                else:
+                    logger.info("***** Running test *****")
+                    logger.info("  Num examples = %d", len(test_examples))
+                # logger.info("  Batch size = %d", args.eval_batch_size)
 
-                        eval_loss = 0
-                        nb_eval_steps = 0
-                        preds = []
-                        gold_label_ids = []
-                        # print('Evaluating...')
-                        for input_ids, input_mask, segment_ids, label_ids in dev_or_test_dataloader:
-                            input_ids = input_ids.to(device)
-                            input_mask = input_mask.to(device)
-                            segment_ids = segment_ids.to(device)
-                            label_ids = label_ids.to(device)
-                            gold_label_ids+=list(label_ids.detach().cpu().numpy())
+                eval_loss = 0
+                nb_eval_steps = 0
+                preds = []
+                gold_label_ids = []
+                # print('Evaluating...')
+                for input_ids, input_mask, segment_ids, label_ids in dev_or_test_dataloader:
+                    input_ids = input_ids.to(device)
+                    input_mask = input_mask.to(device)
+                    segment_ids = segment_ids.to(device)
+                    label_ids = label_ids.to(device)
+                    gold_label_ids+=list(label_ids.detach().cpu().numpy())
 
-                            with torch.no_grad():
-                                logits = model(input_ids, input_mask, None, None, 0.0, is_train=False)
-                            if len(preds) == 0:
-                                preds.append(logits.detach().cpu().numpy())
-                            else:
-                                preds[0] = np.append(preds[0], logits.detach().cpu().numpy(), axis=0)
+                    with torch.no_grad():
+                        logits = model(input_ids, input_mask, None, None, 0.0, is_train=False)
+                    if len(preds) == 0:
+                        preds.append(logits.detach().cpu().numpy())
+                    else:
+                        preds[0] = np.append(preds[0], logits.detach().cpu().numpy(), axis=0)
 
-                        preds = preds[0]
+                preds = preds[0]
 
-                        pred_probs = softmax(preds,axis=1)
-                        pred_label_ids = list(np.argmax(pred_probs, axis=1))
+                pred_probs = softmax(preds,axis=1)
+                pred_label_ids = list(np.argmax(pred_probs, axis=1))
 
-                        gold_label_ids = gold_label_ids
-                        assert len(pred_label_ids) == len(gold_label_ids)
-                        hit_co = 0
-                        for k in range(len(pred_label_ids)):
-                            if pred_label_ids[k] == gold_label_ids[k]:
-                                hit_co +=1
-                        test_acc = hit_co/len(gold_label_ids)
+                gold_label_ids = gold_label_ids
+                assert len(pred_label_ids) == len(gold_label_ids)
+                hit_co = 0
+                for k in range(len(pred_label_ids)):
+                    if pred_label_ids[k] == gold_label_ids[k]:
+                        hit_co +=1
+                test_acc = hit_co/len(gold_label_ids)
 
-                        if idd == 0: # this is dev
-                            if test_acc > max_dev_acc:
-                                max_dev_acc = test_acc
-                                print('\ndev acc:', test_acc, ' max_dev_acc:', max_dev_acc, '\n')
+                if idd == 0: # this is dev
+                    if test_acc > max_dev_acc:
+                        max_dev_acc = test_acc
+                        print('\ndev acc:', test_acc, ' max_dev_acc:', max_dev_acc, '\n')
+                        # '''store the model, because we can test after a max_dev acc reached'''
+                        # model_to_save = (
+                        #     model.module if hasattr(model, "module") else model
+                        # )  # Take care of distributed/parallel training
+                        # store_transformers_models(model_to_save, tokenizer, '/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng', 'kshot_'+str(args.kshot)+'_seed_'+str(args.seed)+'_RTE_acc_'+str(max_dev_acc)+'.pt')
+                    else:
+                        print('\ndev acc:', test_acc, ' max_dev_acc:', max_dev_acc, '\n')
+                        break
+                else: # this is test
+                    if test_acc > max_test_acc:
+                        max_test_acc = test_acc
 
-                            else:
-                                print('\ndev acc:', test_acc, ' max_dev_acc:', max_dev_acc, '\n')
-                                break
-                        else: # this is test
-                            if test_acc > max_test_acc:
-                                max_test_acc = test_acc
-
-                            final_test_performance = test_acc
-                            print('\ntest acc:', test_acc, ' max_test_acc:', max_test_acc, '\n')
+                    final_test_performance = test_acc
+                    print('\ntest acc:', test_acc, ' max_test_acc:', max_test_acc, '\n')
         print('final_test_performance:', final_test_performance)
 
 
@@ -826,10 +838,9 @@ if __name__ == "__main__":
 
 '''
 mixup:
-CUDA_VISIBLE_DEVICES=7 python -u train_RTE_mixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 0 --use_mixup --beta_sampling_times 15
-
-no mixup:
-CUDA_VISIBLE_DEVICES=5 python -u train_RTE.py --task_name rte --do_train --do_lower_case --num_train_epochs 100 --data_dir '' --output_dir '' --train_batch_size 3 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 3 --beta_sampling_times 1
+CUDA_VISIBLE_DEVICES=0 python -u train.RTE.batchMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 100000 --use_mixup --batch_mix_times 400 --beta_sampling_times 15
 
 
+mixup for 3shot
+CUDA_VISIBLE_DEVICES=0 python -u train_RTE_batchMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 3 --use_mixup --beta_sampling_times 400
 '''
