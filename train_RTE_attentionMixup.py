@@ -44,9 +44,7 @@ from transformers.tokenization_roberta import RobertaTokenizer
 from transformers.optimization import AdamW
 from transformers.modeling_roberta import RobertaModel#RobertaForSequenceClassification
 
-# from transformers.modeling_bert import BertModel
-# from transformers.tokenization_bert import BertTokenizer
-# from bert_common_functions import store_transformers_models
+from mixup import tile
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt = '%m/%d/%Y %H:%M:%S',
@@ -108,11 +106,7 @@ class RobertaForSequenceClassification(nn.Module):
 
             score_single = self.single_hidden2tag(contextualized_rep) #(batch, tag_set)
             return score_single, weights
-            '''dot reg'''
-            # dot_batch = torch.sigmoid(torch.mm(hidden_states_single,torch.transpose(hidden_states_single, 0,1))) #(batch, batch)
-            # remail_batch = dot_batch - torch.eye(batch_size).to(device)
-            # regular_loss = (remail_batch**2).sum()
-            # return score_single, regular_loss
+
 
         else:
             score_single = self.single_hidden2tag(hidden_states_single) #(batch, tag_set)
@@ -249,7 +243,7 @@ class RteProcessor(DataProcessor):
         readfile.close()
         print('loaded  entail size:', len(examples_entail), 'non-entail size:', len(examples_non_entail))
         '''sampling'''
-        if k_shot > 99999:
+        if k_shot == 0:
             return examples_entail+examples_non_entail
         else:
             sampled_examples = random.sample(examples_entail, k_shot)+random.sample(examples_non_entail, k_shot)
@@ -753,7 +747,8 @@ def main():
                     # loss_origin = loss_fct(logits[:real_batch_size].view(-1, num_labels), label_ids.view(-1)) #batch_ize
 
                     mixup_logits = logits.view(-1, num_labels) #(mixup_times, 2)
-                    mixup_logits_repeat = torch.repeat_interleave(mixup_logits, repeats=real_batch_size, dim=0) #(mixup_times*batch_size, 2)
+                    mixup_logits_repeat = tile(mixup_logits, 0, real_batch_size)
+                    # mixup_logits_repeat = torch.repeat_interleave(mixup_logits, repeats=real_batch_size, dim=0) #(mixup_times*batch_size, 2)
                     label_id_repeat = label_ids.view(-1).repeat(real_batch_size) #(0,1,2,..batch, 0, 1,2,3...batch)
                     mixup_loss_repeat = loss_fct(mixup_logits_repeat.view(-1, num_labels), label_id_repeat.view(-1))
                     mixup_loss = torch.sum(mixup_loss_repeat.view(real_batch_size, real_batch_size)*softmax_lambda_vec, dim=1) #(mixup_time)
@@ -856,7 +851,7 @@ if __name__ == "__main__":
 
 '''
 mixup:
-CUDA_VISIBLE_DEVICES=0 python -u train_RTE_attentionMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 100000 --use_mixup --beta_sampling_times 400
+CUDA_VISIBLE_DEVICES=7 python -u train_RTE_attentionMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 0 --use_mixup --beta_sampling_times 400
 
 
 '''
