@@ -529,23 +529,14 @@ def main():
         "rte": "classification"
     }
 
-    if args.local_rank == -1 or args.no_cuda:
-        device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
-        n_gpu = torch.cuda.device_count()
-    else:
-        torch.cuda.set_device(args.local_rank)
-        device = torch.device("cuda", args.local_rank)
-        n_gpu = 1
-        # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
-        torch.distributed.init_process_group(backend='nccl')
-    logger.info("device: {} n_gpu: {}, distributed training: {}, 16-bits training: {}".format(
-        device, n_gpu, bool(args.local_rank != -1), args.fp16))
 
-    if args.gradient_accumulation_steps < 1:
-        raise ValueError("Invalid gradient_accumulation_steps parameter: {}, should be >= 1".format(
-                            args.gradient_accumulation_steps))
+    device = torch.device("cuda")
+    n_gpu = torch.cuda.device_count()
 
-    args.train_batch_size = args.train_batch_size // args.gradient_accumulation_steps
+
+    args.train_batch_size = args.train_batch_size * max(1, n_gpu)
+    args.eval_batch_size = args.eval_batch_size * max(1, n_gpu)
+
 
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -593,7 +584,8 @@ def main():
 
     model = RobertaForSequenceClassification(num_labels)
     tokenizer = RobertaTokenizer.from_pretrained(pretrain_model_dir, do_lower_case=args.do_lower_case)
-    # model.load_state_dict(torch.load('/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng/kshot_3_seed_16_RTE_acc_0.5523465703971119.pt'))
+    if n_gpu > 1:
+        model = torch.nn.DataParallel(model)
     model.to(device)
 
     param_optimizer = list(model.named_parameters())
