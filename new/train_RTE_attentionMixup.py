@@ -76,7 +76,7 @@ class RobertaForSequenceClassification(nn.Module):
         self.query_hidden_layer = nn.Linear(bert_hidden_dim, bert_hidden_dim)
         self.key_hidden_layer = nn.Linear(bert_hidden_dim, bert_hidden_dim)
         self.value_hidden_layer = nn.Linear(bert_hidden_dim, bert_hidden_dim)
-        self.single_hidden2tag = RobertaClassificationHead(bert_hidden_dim, tagset_size)
+        self.single_hidden2tag = RobertaClassificationHead(2*bert_hidden_dim, tagset_size)
 
         # self.roberta_pair = RobertaModel.from_pretrained(pretrain_model_dir)
         # self.pair_hidden2score = nn.Linear(bert_hidden_dim, 1)
@@ -96,7 +96,8 @@ class RobertaForSequenceClassification(nn.Module):
             values = self.value_hidden_layer(hidden_states_single) #(batch, hidden)
             matching_raw = nn.Softmax(dim=1)(torch.mm(queries, torch.transpose(keys, 0,1))) #(batch, batch)
             context = torch.mm(matching_raw, values) #(batch, hidden)
-            contextualized_rep = hidden_states_single + context #(batch, hidden)
+            # contextualized_rep = hidden_states_single + context #(batch, hidden)
+            contextualized_rep = torch.cat([hidden_states_single,context], axis=1) #(batch, hidden)
             weights = nn.Softmax(dim=1)(matching_raw + eye_tensor)#torch.eye(batch_size, batch_size)
 
 
@@ -105,8 +106,8 @@ class RobertaForSequenceClassification(nn.Module):
 
 
         else:
-            score_single = self.single_hidden2tag(hidden_states_single) #(batch, tag_set)
-            # score_single = self.single_hidden2tag(torch.cat([hidden_states_single, hidden_states_single],dim=1)) #(batch, tag_set)
+            # score_single = self.single_hidden2tag(hidden_states_single) #(batch, tag_set)
+            score_single = self.single_hidden2tag(torch.cat([hidden_states_single, hidden_states_single],dim=1)) #(batch, tag_set)
             return score_single
 
 
