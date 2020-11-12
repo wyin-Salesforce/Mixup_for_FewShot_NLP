@@ -39,7 +39,7 @@ from scipy.special import softmax
 import math
 from torch.nn.parameter import Parameter
 # from .. import init
-from mixup import mixup_layer
+from mixup_v2 import mixup_layer
 
 from transformers.tokenization_roberta import RobertaTokenizer
 from transformers.optimization import AdamW
@@ -77,7 +77,7 @@ class RobertaForSequenceClassification(nn.Module):
         outputs_single = self.roberta_single(input_ids, input_mask, None)
         hidden_states_single = torch.tanh(self.hidden_layer_2(torch.tanh(self.hidden_layer_1(outputs_single[1])))) #(batch, hidden)
         '''mixup_results might be loss (in training) or logits (in testing)'''
-        mixup_results = mixup_layer(hidden_states_single, labels, self.tagset_size, lambda_value, self.single_hidden2tag, is_train=is_train, use_mixup=use_mixup)
+        mixup_results = mixup_layer(hidden_states_single, self.ele_wise_v1, self.ele_wise_v2, labels, self.tagset_size, lambda_value, self.single_hidden2tag, is_train=is_train, use_mixup=use_mixup)
         return mixup_results
 
 
