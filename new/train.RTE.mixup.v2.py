@@ -34,11 +34,11 @@ from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 from scipy.stats import beta
-from torch.nn import CrossEntropyLoss, MSELoss
+from torch.nn import CrossEntropyLoss, MSELoss, init
 from scipy.special import softmax
 import math
 from torch.nn.parameter import Parameter
-from .. import init
+# from .. import init
 from mixup import mixup_layer
 
 from transformers.tokenization_roberta import RobertaTokenizer
