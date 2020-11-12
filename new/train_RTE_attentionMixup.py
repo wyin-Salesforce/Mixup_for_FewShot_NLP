@@ -98,7 +98,7 @@ class RobertaForSequenceClassification(nn.Module):
             context = torch.mm(matching_raw, values) #(batch, hidden)
             # contextualized_rep = hidden_states_single + context #(batch, hidden)
             contextualized_rep = torch.cat([hidden_states_single,context], axis=1) #(batch, hidden)
-            weights = nn.Softmax(dim=1)(matching_raw + eye_tensor)#torch.eye(batch_size, batch_size)
+            weights = matching_raw + eye_tensor#nn.Softmax(dim=1)(matching_raw + eye_tensor)#torch.eye(batch_size, batch_size)
 
 
             score_single = self.single_hidden2tag(contextualized_rep) #(batch, tag_set)
