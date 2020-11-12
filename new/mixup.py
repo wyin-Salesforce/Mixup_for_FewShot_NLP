@@ -1,6 +1,7 @@
 import torch
 from scipy.stats import beta
 from torch.nn import CrossEntropyLoss
+import numpy as np
 
 def tile(a, dim, n_tile):
     init_dim = a.size(dim)
