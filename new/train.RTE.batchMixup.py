@@ -35,7 +35,7 @@ from tqdm import tqdm, trange
 from scipy.stats import beta
 from torch.nn import CrossEntropyLoss, MSELoss
 from scipy.special import softmax
-from mixup import mixup_layer
+from mixup import mixup_layer, tile
 from transformers.tokenization_roberta import RobertaTokenizer
 from transformers.optimization import AdamW
 from transformers.modeling_roberta import RobertaModel#RobertaForSequenceClassification
@@ -717,7 +717,7 @@ def main():
                     loss_fct = CrossEntropyLoss(reduction='none')
 
                     mixup_logits = logits.view(-1, num_labels) #(mixup_times, 2)
-                    mixup_logits_repeat = torch.repeat_interleave(mixup_logits, repeats=real_batch_size, dim=0) #(mixup_times*batch_size, 2)
+                    mixup_logits_repeat = tile(mixup_logits, 0, real_batch_size) #torch.repeat_interleave(mixup_logits, repeats=real_batch_size, dim=0) #(mixup_times*batch_size, 2)
                     label_id_repeat = label_ids.view(-1).repeat(args.batch_mix_times) #(0,1,2,..batch, 0, 1,2,3...batch)
                     mixup_loss_repeat = loss_fct(mixup_logits_repeat.view(-1, num_labels), label_id_repeat.view(-1))
                     mixup_loss = torch.sum(mixup_loss_repeat.view(args.batch_mix_times, real_batch_size)*lambda_matrix, dim=1) #(mixup_time)
