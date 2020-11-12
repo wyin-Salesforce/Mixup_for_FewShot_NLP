@@ -26,7 +26,7 @@ def mixup_layer(hidden_states_batch, labels, num_labels, lambda_value, classific
             '''mix representations'''
             hidden_states_single_v1 = hidden_states_batch.repeat(batch_size, 1)
             hidden_states_single_v2 = torch.repeat_interleave(hidden_states_batch, repeats=batch_size, dim=0)
-            combined_pairs = lambda_value*hidden_states_single_v1+lambda_value*hidden_states_single_v1 #(batch*batch, hidden)
+            combined_pairs = lambda_value*hidden_states_single_v1+(1.0-lambda_value)*hidden_states_single_v1 #(batch*batch, hidden)
             print('combined_pairs:', combined_pairs)
             logits = classification_function(combined_pairs) #(batch, tag_set)
 
@@ -40,7 +40,7 @@ def mixup_layer(hidden_states_batch, labels, num_labels, lambda_value, classific
             '''mixup loss'''
             loss_v1 = loss_fct(logits.view(-1, num_labels), label_ids_v1.view(-1))
             loss_v2 = loss_fct(logits.view(-1, num_labels), label_ids_v2.view(-1))
-            loss = lambda_value*loss_v1+lambda_value*loss_v2# + 1e-3*reg_loss
+            loss = lambda_value*loss_v1+(1.0-lambda_value)*loss_v2# + 1e-3*reg_loss
             return loss
         else:
             logits = classification_function(hidden_states_batch) #(batch, tag_set)
