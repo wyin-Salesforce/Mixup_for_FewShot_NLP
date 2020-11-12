@@ -789,11 +789,6 @@ def main():
                     if test_acc > max_dev_acc:
                         max_dev_acc = test_acc
                         print('\ndev acc:', test_acc, ' max_dev_acc:', max_dev_acc, '\n')
-                        # '''store the model, because we can test after a max_dev acc reached'''
-                        # model_to_save = (
-                        #     model.module if hasattr(model, "module") else model
-                        # )  # Take care of distributed/parallel training
-                        # store_transformers_models(model_to_save, tokenizer, '/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng', 'kshot_'+str(args.kshot)+'_seed_'+str(args.seed)+'_RTE_acc_'+str(max_dev_acc)+'.pt')
                     else:
                         print('\ndev acc:', test_acc, ' max_dev_acc:', max_dev_acc, '\n')
                         break
@@ -812,6 +807,6 @@ if __name__ == "__main__":
 
 '''
 mixup:
-CUDA_VISIBLE_DEVICES=1 python -u train.RTE.batchMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 0 --batch_mix_times 400 --beta_sampling_times 15
+CUDA_VISIBLE_DEVICES=6 python -u train.RTE.batchMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 0 --batch_mix_times 400 --beta_sampling_times 15
 
 '''
