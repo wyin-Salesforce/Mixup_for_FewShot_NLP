@@ -26,6 +26,7 @@ import sys
 import codecs
 import numpy as np
 import torch
+torch.set_printoptions(precision=30)
 import torch.nn as nn
 from collections import defaultdict
 from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
@@ -35,18 +36,12 @@ from tqdm import tqdm, trange
 from scipy.stats import beta
 from torch.nn import CrossEntropyLoss, MSELoss
 from scipy.special import softmax
-# from scipy.stats import pearsonr, spearmanr
-# from sklearn.metrics import matthews_corrcoef, f1_score
 
-from preprocess_CLINC150 import load_CLINC150_with_specific_domain_sequence
+from mixup import mixup_layer
 
 from transformers.tokenization_roberta import RobertaTokenizer
 from transformers.optimization import AdamW
 from transformers.modeling_roberta import RobertaModel#RobertaForSequenceClassification
-
-# from transformers.modeling_bert import BertModel
-# from transformers.tokenization_bert import BertTokenizer
-# from bert_common_functions import store_transformers_models
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt = '%m/%d/%Y %H:%M:%S',
@@ -71,34 +66,12 @@ class RobertaForSequenceClassification(nn.Module):
         self.hidden_layer_2 = nn.Linear(bert_hidden_dim, bert_hidden_dim)
         self.single_hidden2tag = RobertaClassificationHead(bert_hidden_dim, tagset_size)
 
-        # self.roberta_pair = RobertaModel.from_pretrained(pretrain_model_dir)
-        # self.pair_hidden2score = nn.Linear(bert_hidden_dim, 1)
-
-    def forward(self, input_ids, input_mask, input_seg, labels, lambda_value, is_train = False):
-        # single_train_input_ids, single_train_input_mask, single_train_segment_ids, single_train_label_ids = batch_single
+    def forward(self, input_ids, input_mask, labels, lambda_value, is_train = True, use_mixup=True):
         outputs_single = self.roberta_single(input_ids, input_mask, None)
         hidden_states_single = torch.tanh(self.hidden_layer_2(torch.tanh(self.hidden_layer_1(outputs_single[1])))) #(batch, hidden)
-        # print('hidden_states_single:', hidden_states_single)
-        '''mixup'''
-        if is_train:
-            batch_size = input_ids.shape[0]#.cpu().numpy()
-            hidden_states_single_v1 = hidden_states_single.repeat(batch_size, 1)
-            hidden_states_single_v2 = torch.repeat_interleave(hidden_states_single, repeats=batch_size, dim=0)
-            combined_pairs = lambda_value*hidden_states_single_v1+(1.0-lambda_value)*hidden_states_single_v2 #(batch*batch, hidden)
-            # combined_pairs = torch.cat([hidden_states_single_v1, hidden_states_single_v2],dim=1)#(batch*batch, 2*hidden)
-            score_single = self.single_hidden2tag(combined_pairs) #(batch, tag_set)
-            return score_single
-            '''dot reg'''
-            # dot_batch = torch.sigmoid(torch.mm(hidden_states_single,torch.transpose(hidden_states_single, 0,1))) #(batch, batch)
-            # remail_batch = dot_batch - torch.eye(batch_size).to(device)
-            # regular_loss = (remail_batch**2).sum()
-            # return score_single, regular_loss
-
-        else:
-            score_single = self.single_hidden2tag(hidden_states_single) #(batch, tag_set)
-            # score_single = self.single_hidden2tag(torch.cat([hidden_states_single, hidden_states_single],dim=1)) #(batch, tag_set)
-            return score_single
-
+        '''mixup_results might be loss (in training) or logits (in testing)'''
+        mixup_results = mixup_layer(hidden_states_single, labels, self.tagset_size, lambda_value, self.single_hidden2tag, is_train=is_train, use_mixup=use_mixup)
+        return mixup_results
 
 
 class RobertaClassificationHead(nn.Module):
@@ -229,7 +202,7 @@ class RteProcessor(DataProcessor):
         readfile.close()
         print('loaded  entail size:', len(examples_entail), 'non-entail size:', len(examples_non_entail))
         '''sampling'''
-        if k_shot > 99999:
+        if k_shot == 0:
             return examples_entail+examples_non_entail
         else:
             sampled_examples = random.sample(examples_entail, k_shot)+random.sample(examples_non_entail, k_shot)
@@ -453,22 +426,11 @@ def main():
     parser = argparse.ArgumentParser()
 
     ## Required parameters
-    parser.add_argument("--data_dir",
-                        default=None,
-                        type=str,
-                        required=True,
-                        help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
     parser.add_argument("--task_name",
                         default=None,
                         type=str,
                         required=True,
                         help="The name of the task to train.")
-    parser.add_argument("--output_dir",
-                        default=None,
-                        type=str,
-                        required=True,
-                        help="The output directory where the model predictions and checkpoints will be written.")
-
     ## Other parameters
     parser.add_argument("--cache_dir",
                         default="",
@@ -560,23 +522,12 @@ def main():
         "rte": "classification"
     }
 
-    if args.local_rank == -1 or args.no_cuda:
-        device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
-        n_gpu = torch.cuda.device_count()
-    else:
-        torch.cuda.set_device(args.local_rank)
-        device = torch.device("cuda", args.local_rank)
-        n_gpu = 1
-        # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
-        torch.distributed.init_process_group(backend='nccl')
-    logger.info("device: {} n_gpu: {}, distributed training: {}, 16-bits training: {}".format(
-        device, n_gpu, bool(args.local_rank != -1), args.fp16))
+    device = torch.device("cuda")
+    n_gpu = torch.cuda.device_count()
 
-    if args.gradient_accumulation_steps < 1:
-        raise ValueError("Invalid gradient_accumulation_steps parameter: {}, should be >= 1".format(
-                            args.gradient_accumulation_steps))
 
-    args.train_batch_size = args.train_batch_size // args.gradient_accumulation_steps
+    args.train_batch_size = args.train_batch_size * max(1, n_gpu)
+    args.eval_batch_size = args.train_batch_size * max(1, n_gpu)
 
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -598,13 +549,6 @@ def main():
     processor = processors[task_name]()
     output_mode = output_modes[task_name]
 
-    # label_list = processor.get_labels() #["entailment", "neutral", "contradiction"]
-    # label_list = ['How_do_I_create_a_profile_v4', 'Profile_Switch_v4', 'Deactivate_Active_Devices_v4', 'Ads_on_Hulu_v4', 'Watching_Hulu_with_Live_TV_v4', 'Hulu_Costs_and_Commitments_v4', 'offline_downloads_v4', 'womens_world_cup_v5', 'forgot_username_v4', 'confirm_account_cancellation_v4', 'Devices_to_Watch_HBO_on_v4', 'remove_add_on_v4', 'Internet_Speed_for_HD_and_4K_v4', 'roku_related_questions_v4', 'amazon_related_questions_v4', 'Clear_Browser_Cache_v4', 'ads_on_ad_free_plan_v4', 'inappropriate_ads_v4', 'itunes_related_questions_v4', 'Internet_Speed_Recommendations_v4', 'NBA_Basketball_v5', 'unexpected_charges_v4', 'change_billing_date_v4', 'NFL_on_Hulu_v5', 'How_to_delete_a_profile_v4', 'Devices_to_Watch_Hulu_on_v4', 'Manage_your_Hulu_subscription_v4', 'cancel_hulu_account_v4', 'disney_bundle_v4', 'payment_issues_v4', 'home_network_location_v4', 'Main_Menu_v4', 'Resetting_Hulu_Password_v4', 'Update_Payment_v4', 'I_need_general_troubleshooting_help_v4', 'What_is_Hulu_v4', 'sprint_related_questions_v4', 'Log_into_TV_with_activation_code_v4', 'Game_of_Thrones_v4', 'video_playback_issues_v4', 'How_to_edit_a_profile_v4', 'Watchlist_Remove_Video_v4', 'spotify_related_questions_v4', 'Deactivate_Login_Sessions_v4', 'Transfer_to_Agent_v4', 'Use_Hulu_Internationally_v4']
-    # num_labels = len(label_list)
-    #
-    #
-    #
-    # train_examples = None
 
 
     train_examples = processor.get_RTE_as_train_k_shot('/export/home/Dataset/glue_data/RTE/train.tsv', args.kshot) #train_pu_half_v1.txt
@@ -624,7 +568,10 @@ def main():
 
     model = RobertaForSequenceClassification(num_labels)
     tokenizer = RobertaTokenizer.from_pretrained(pretrain_model_dir, do_lower_case=args.do_lower_case)
-    model.load_state_dict(torch.load('/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng/acc_0.8303249097472925.pt'))
+    model.load_state_dict(torch.load('/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng/batchMixup_pretrain_dev_acc_seed_'+str(args.seed)+'.pt'))
+    if n_gpu > 1:
+        model = torch.nn.DataParallel(model)
+
     model.to(device)
 
     param_optimizer = list(model.named_parameters())
@@ -712,7 +659,7 @@ def main():
 
         iter_co = 0
         final_test_performance = 0.0
-        for _ in trange(int(args.num_train_epochs), desc="Epoch"):
+        for epoch_i in trange(int(args.num_train_epochs), desc="Epoch"):
             tr_loss = 0
             nb_tr_examples, nb_tr_steps = 0, 0
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
@@ -720,24 +667,9 @@ def main():
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, segment_ids, label_ids = batch
 
-                for _ in range(args.beta_sampling_times):
+                for sample_i in range(args.beta_sampling_times):
                     lambda_vec = beta.rvs(0.4, 0.4, size=1)[0]
-
-                    '''use mixup???'''
-                    use_mixup=args.use_mixup
-                    logits = model(input_ids, input_mask, None, None, lambda_vec, is_train=use_mixup)
-                    loss_fct = CrossEntropyLoss()
-
-                    if use_mixup:
-                        '''mixup loss'''
-                        single_train_label_ids_v1 = label_ids.repeat(input_ids.shape[0])
-                        single_train_label_ids_v2 = torch.repeat_interleave(label_ids.view(-1, 1), repeats=input_ids.shape[0], dim=0)
-                        loss_v1 = loss_fct(logits.view(-1, num_labels), single_train_label_ids_v1.view(-1))
-                        loss_v2 = loss_fct(logits.view(-1, num_labels), single_train_label_ids_v2.view(-1))
-                        loss = lambda_vec*loss_v1+(1.0-lambda_vec)*loss_v2# + 1e-3*reg_loss
-                    else:
-                        loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1))
-
+                    loss = model(input_ids, input_mask, label_ids, lambda_vec, is_train=True, use_mixup=args.use_mixup)
                     if n_gpu > 1:
                         loss = loss.mean() # mean() to average on multi-gpu.
                     if args.gradient_accumulation_steps > 1:
@@ -784,7 +716,7 @@ def main():
                             gold_label_ids+=list(label_ids.detach().cpu().numpy())
 
                             with torch.no_grad():
-                                logits = model(input_ids, input_mask, None, None, 0.0, is_train=False)
+                                logits = model(input_ids, input_mask, None, None, is_train=False, use_mixup=False)
                             if len(preds) == 0:
                                 preds.append(logits.detach().cpu().numpy())
                             else:
@@ -826,10 +758,8 @@ if __name__ == "__main__":
 
 '''
 mixup:
-CUDA_VISIBLE_DEVICES=4 python -u train_RTE.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 100000 --use_mixup --beta_sampling_times 15
+CUDA_VISIBLE_DEVICES=5,6,7 python -u train_RTE_batchMixup_finetune.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 0 --use_mixup --beta_sampling_times 15
 
-no mixup:
-CUDA_VISIBLE_DEVICES=5 python -u train_RTE.py --task_name rte --do_train --do_lower_case --num_train_epochs 100 --data_dir '' --output_dir '' --train_batch_size 3 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 3 --beta_sampling_times 1
 
 
 '''
