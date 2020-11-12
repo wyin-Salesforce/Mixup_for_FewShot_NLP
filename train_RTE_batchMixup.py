@@ -729,9 +729,9 @@ def main():
                 input_ids, input_mask, segment_ids, label_ids = batch
                 real_batch_size = input_ids.shape[0]
                 lambda_vec = torch.rand(args.beta_sampling_times, real_batch_size).to(device)
-                softmax_lambda_vec = nn.Softmax(dim=1)(lambda_vec) #(mix_time, batch_size)
+                # softmax_lambda_vec = nn.Softmax(dim=1)(lambda_vec) #(mix_time, batch_size)
                 # print(epoch_i, step, ' softmax_lambda_vec:', softmax_lambda_vec)
-                # softmax_lambda_vec = lambda_vec/(1e-8+torch.sum(lambda_vec, dim=1, keepdim=True))
+                softmax_lambda_vec = lambda_vec/(1e-8+torch.sum(lambda_vec, dim=1, keepdim=True))
                 '''use mixup???'''
                 if epoch_i < 20:
                     '''pretraining'''
