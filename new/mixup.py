@@ -2,6 +2,14 @@ import torch
 from scipy.stats import beta
 from torch.nn import CrossEntropyLoss
 
+def tile(a, dim, n_tile):
+    init_dim = a.size(dim)
+    repeat_idx = [1] * a.dim()
+    repeat_idx[dim] = n_tile
+    a = a.repeat(*(repeat_idx))
+    order_index = torch.LongTensor(np.concatenate([init_dim * np.arange(n_tile) + i for i in range(init_dim)]))
+    return torch.index_select(a, dim, order_index)
+
 def mixup_layer(hidden_states_batch, labels, num_labels, lambda_value, classification_function, is_train=True, use_mixup=True):
     '''
     Inputs:
@@ -26,7 +34,7 @@ def mixup_layer(hidden_states_batch, labels, num_labels, lambda_value, classific
             '''mix representations'''
             hidden_states_single_v1 = hidden_states_batch.repeat(batch_size, 1)
             print('hidden_states_batch:', hidden_states_batch)
-            hidden_states_single_v2 = torch.repeat_interleave(hidden_states_batch, repeats=batch_size, dim=0)
+            hidden_states_single_v2 = tile(hidden_states_batch, 0, batch_size)#torch.repeat_interleave(hidden_states_batch, repeats=batch_size, dim=0)
             print('hidden_states_single_v2:', hidden_states_single_v2)
             combined_pairs = lambda_value*hidden_states_single_v1+(1.0-lambda_value)*hidden_states_single_v2 #(batch*batch, hidden)
             # print('combined_pairs:', combined_pairs)
