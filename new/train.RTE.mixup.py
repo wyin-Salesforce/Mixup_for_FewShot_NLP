@@ -66,9 +66,6 @@ class RobertaForSequenceClassification(nn.Module):
         self.hidden_layer_2 = nn.Linear(bert_hidden_dim, bert_hidden_dim)
         self.single_hidden2tag = RobertaClassificationHead(bert_hidden_dim, tagset_size)
 
-        # self.roberta_pair = RobertaModel.from_pretrained(pretrain_model_dir)
-        # self.pair_hidden2score = nn.Linear(bert_hidden_dim, 1)
-
     def forward(self, input_ids, input_mask, labels, lambda_value, is_train = True, use_mixup=True):
         outputs_single = self.roberta_single(input_ids, input_mask, None)
         hidden_states_single = torch.tanh(self.hidden_layer_2(torch.tanh(self.hidden_layer_1(outputs_single[1])))) #(batch, hidden)
@@ -687,13 +684,7 @@ def main():
 
                 for sample_i in range(args.beta_sampling_times):
                     lambda_vec = beta.rvs(0.4, 0.4, size=1)[0]
-                    # lambda_vec = torch.empty(1).fill_(lambda_vec).to(device)
-                    # print(epoch_i, step, sample_i, 'lambda_vec:', lambda_vec)
                     loss = model(input_ids, input_mask, label_ids, lambda_vec, is_train=True, use_mixup=args.use_mixup)
-                    # print(epoch_i, step, sample_i, 'lambda_vec:', lambda_vec, 'input_ids:', input_ids[0:5, :10])
-                    # print('loss:', loss.item())
-                    # if epoch_i == 0 and step == 1 and sample_i == 0:
-                    #     exit(0)
                     if n_gpu > 1:
                         loss = loss.mean() # mean() to average on multi-gpu.
                     if args.gradient_accumulation_steps > 1:
