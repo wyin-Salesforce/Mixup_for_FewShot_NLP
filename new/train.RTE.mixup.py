@@ -676,7 +676,7 @@ def main():
 
         iter_co = 0
         final_test_performance = 0.0
-        for _ in trange(int(args.num_train_epochs), desc="Epoch"):
+        for epoch_i in trange(int(args.num_train_epochs), desc="Epoch"):
             tr_loss = 0
             nb_tr_examples, nb_tr_steps = 0, 0
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
@@ -684,8 +684,9 @@ def main():
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, segment_ids, label_ids = batch
 
-                for _ in range(args.beta_sampling_times):
+                for sample_i in range(args.beta_sampling_times):
                     lambda_vec = beta.rvs(0.4, 0.4, size=1)[0]
+                    print(epoch_i, step, sample_i, 'lambda_vec:', lambda_vec)
                     loss = model(input_ids, input_mask, label_ids, lambda_vec, is_train=True, use_mixup=args.use_mixup)
                     if n_gpu > 1:
                         loss = loss.mean() # mean() to average on multi-gpu.
@@ -775,7 +776,7 @@ if __name__ == "__main__":
 
 '''
 mixup:
-CUDA_VISIBLE_DEVICES=4 python -u train_RTE.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 0 --use_mixup --beta_sampling_times 15
+CUDA_VISIBLE_DEVICES=4 python -u train.RTE.mixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 0 --use_mixup --beta_sampling_times 15
 
 no mixup:
 CUDA_VISIBLE_DEVICES=5 python -u train_RTE.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 100000 --beta_sampling_times 1
