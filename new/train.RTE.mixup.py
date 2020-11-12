@@ -27,7 +27,6 @@ import codecs
 import numpy as np
 import torch
 torch.set_printoptions(precision=30)
-torch.backends.cudnn.determinic = True
 import torch.nn as nn
 from collections import defaultdict
 from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
@@ -688,6 +687,7 @@ def main():
 
                 for sample_i in range(args.beta_sampling_times):
                     lambda_vec = beta.rvs(0.4, 0.4, size=1)[0]
+                    lambda_vec = torch.empty(1).fill_(lambda_vec).to(device)
                     # print(epoch_i, step, sample_i, 'lambda_vec:', lambda_vec)
                     loss = model(input_ids, input_mask, label_ids, lambda_vec, is_train=True, use_mixup=args.use_mixup)
                     print(epoch_i, step, sample_i, 'lambda_vec:', lambda_vec, 'input_ids:', input_ids[0:5, :10])
