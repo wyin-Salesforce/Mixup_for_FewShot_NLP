@@ -27,6 +27,7 @@ import codecs
 import numpy as np
 import torch
 torch.set_printoptions(precision=30)
+torch.backends.cudnn.determinic = True
 import torch.nn as nn
 from collections import defaultdict
 from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
