@@ -26,7 +26,7 @@ def mixup_layer(hidden_states_batch, labels, num_labels, lambda_value, classific
             '''mix representations'''
             hidden_states_single_v1 = hidden_states_batch.repeat(batch_size, 1)
             hidden_states_single_v2 = torch.repeat_interleave(hidden_states_batch, repeats=batch_size, dim=0)
-            combined_pairs = lambda_value*hidden_states_single_v1#+lambda_value*hidden_states_single_v2 #(batch*batch, hidden)
+            combined_pairs = lambda_value*hidden_states_single_v1+lambda_value*hidden_states_single_v2 #(batch*batch, hidden)
             print('combined_pairs:', combined_pairs)
             logits = classification_function(combined_pairs) #(batch, tag_set)
 
