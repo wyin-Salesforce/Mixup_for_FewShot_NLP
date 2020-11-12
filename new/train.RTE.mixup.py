@@ -692,8 +692,8 @@ def main():
                     loss = model(input_ids, input_mask, label_ids, lambda_vec, is_train=True, use_mixup=args.use_mixup)
                     # print(epoch_i, step, sample_i, 'lambda_vec:', lambda_vec, 'input_ids:', input_ids[0:5, :10])
                     # print('loss:', loss.item())
-                    if epoch_i == 0 and step == 1 and sample_i == 0:
-                        exit(0)
+                    # if epoch_i == 0 and step == 1 and sample_i == 0:
+                    #     exit(0)
                     if n_gpu > 1:
                         loss = loss.mean() # mean() to average on multi-gpu.
                     if args.gradient_accumulation_steps > 1:
