@@ -51,7 +51,9 @@ def mixup_layer(hidden_states_batch, labels, num_labels, lambda_values, classifi
                 loss_v1 = loss_fct(logits.view(-1, num_labels), label_ids_v1.view(-1))
                 loss_v2 = loss_fct(logits.view(-1, num_labels), label_ids_v2.view(-1))
                 loss = lambda_value*loss_v1+(1.0-lambda_value)*loss_v2# + 1e-3*reg_loss
+                print('loss:', loss)
                 loss_list.append(loss)
+            print('loss_list:', loss_list)
             return torch.cat(loss_list).mean()
         else:
             logits = classification_function(hidden_states_batch) #(batch, tag_set)

@@ -773,7 +773,7 @@ if __name__ == "__main__":
 
 '''
 mixup:
-CUDA_VISIBLE_DEVICES=4 python -u train.RTE.mixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 0 --use_mixup --beta_sampling_times 15
+CUDA_VISIBLE_DEVICES=4 python -u train.RTE.mixup.faster.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 0 --use_mixup --beta_sampling_times 15
 
 no mixup:
 CUDA_VISIBLE_DEVICES=5 python -u train_RTE.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 100000 --beta_sampling_times 1
