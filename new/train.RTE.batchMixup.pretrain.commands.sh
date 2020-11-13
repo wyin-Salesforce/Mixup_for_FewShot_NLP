@@ -1,7 +1,7 @@
 export BATCHMIXTIMES=400
-export SHOT=0.50
+export SHOT=0.01
 export BATCHSIZE=5
-export EPOCHSIZE=40 #20 batchmixup, 20 for standard mixup
+export EPOCHSIZE=40
 
 CUDA_VISIBLE_DEVICES=4 python -u train.RTE.batchMixup.pretrain.py \
     --task_name rte \
