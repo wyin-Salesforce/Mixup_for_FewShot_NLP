@@ -1,7 +1,7 @@
 export BETATIMES=15
 export SHOT=0.01
 export BATCHSIZE=5
-export EPOCHSIZE=5
+export EPOCHSIZE=20
 
 CUDA_VISIBLE_DEVICES=4 python -u train.RTE.batchMixup.then.mixup.py \
     --task_name rte \
