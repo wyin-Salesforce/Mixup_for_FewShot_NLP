@@ -53,7 +53,8 @@ def mixup_layer(hidden_states_batch, labels, num_labels, lambda_values, classifi
                 loss = lambda_value*loss_v1+(1.0-lambda_value)*loss_v2# + 1e-3*reg_loss
                 loss_sum+=loss
             # print('loss_list:', loss_list)
-            return loss_sum
+            # return loss_sum
+            return loss_sum/len(lambda_values)
         else:
             logits = classification_function(hidden_states_batch) #(batch, tag_set)
             loss_fct = CrossEntropyLoss()
