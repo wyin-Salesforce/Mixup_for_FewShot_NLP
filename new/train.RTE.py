@@ -198,13 +198,13 @@ class RteProcessor(DataProcessor):
         print('loaded  entail size:', len(examples_entail), 'non-entail size:', len(examples_non_entail))
         '''sampling'''
         all_examples = examples_entail+examples_non_entail
-        if int(k_shot) ==0:
+        if k_shot ==0:
             return all_examples
         else:
             all_size = len(all_examples)
             select_size = int(all_size*k_shot)
-            print('all_size:', all_size, 'k_shot:', k_shot, 'select_size:', select_size)
-            exit(0)
+            # print('all_size:', all_size, 'k_shot:', k_shot, 'select_size:', select_size)
+            # exit(0)
             sampled_examples = random.sample(all_examples, select_size)
             return sampled_examples
 
