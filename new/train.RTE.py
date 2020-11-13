@@ -204,6 +204,7 @@ class RteProcessor(DataProcessor):
             all_size = len(all_examples)
             select_size = int(all_size*k_shot)
             print('all_size:', all_size, 'k_shot:', k_shot, 'select_size:', select_size)
+            exit(0)
             sampled_examples = random.sample(all_examples, select_size)
             return sampled_examples
 
