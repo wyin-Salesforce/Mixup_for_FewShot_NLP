@@ -197,10 +197,13 @@ class RteProcessor(DataProcessor):
         readfile.close()
         print('loaded  entail size:', len(examples_entail), 'non-entail size:', len(examples_non_entail))
         '''sampling'''
+        all_examples = examples_entail+examples_non_entail
         if k_shot ==0:
-            return examples_entail+examples_non_entail
+            return all_examples
         else:
-            sampled_examples = random.sample(examples_entail, k_shot)+random.sample(examples_non_entail, k_shot)
+            all_size = len(all_examples)
+            select_size = int(all_size*k_shot)
+            sampled_examples = random.sample(all_examples, select_size)
             return sampled_examples
 
     def get_RTE_as_dev(self, filename):
