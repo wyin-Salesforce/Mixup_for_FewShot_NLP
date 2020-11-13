@@ -37,7 +37,7 @@ from scipy.stats import beta
 from torch.nn import CrossEntropyLoss, MSELoss
 from scipy.special import softmax
 
-from mixup import mixup_layer
+from mixup_faster import mixup_layer
 
 from transformers.tokenization_roberta import RobertaTokenizer
 from transformers.optimization import AdamW
@@ -522,12 +522,23 @@ def main():
         "rte": "classification"
     }
 
-    device = torch.device("cuda")
-    n_gpu = torch.cuda.device_count()
+    if args.local_rank == -1 or args.no_cuda:
+        device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
+        n_gpu = torch.cuda.device_count()
+    else:
+        torch.cuda.set_device(args.local_rank)
+        device = torch.device("cuda", args.local_rank)
+        n_gpu = 1
+        # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
+        torch.distributed.init_process_group(backend='nccl')
+    logger.info("device: {} n_gpu: {}, distributed training: {}, 16-bits training: {}".format(
+        device, n_gpu, bool(args.local_rank != -1), args.fp16))
 
+    if args.gradient_accumulation_steps < 1:
+        raise ValueError("Invalid gradient_accumulation_steps parameter: {}, should be >= 1".format(
+                            args.gradient_accumulation_steps))
 
-    args.train_batch_size = args.train_batch_size * max(1, n_gpu)
-    args.eval_batch_size = args.train_batch_size * max(1, n_gpu)
+    args.train_batch_size = args.train_batch_size // args.gradient_accumulation_steps
 
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -549,12 +560,21 @@ def main():
     processor = processors[task_name]()
     output_mode = output_modes[task_name]
 
+    # label_list = processor.get_labels() #["entailment", "neutral", "contradiction"]
+    # label_list = ['How_do_I_create_a_profile_v4', 'Profile_Switch_v4', 'Deactivate_Active_Devices_v4', 'Ads_on_Hulu_v4', 'Watching_Hulu_with_Live_TV_v4', 'Hulu_Costs_and_Commitments_v4', 'offline_downloads_v4', 'womens_world_cup_v5', 'forgot_username_v4', 'confirm_account_cancellation_v4', 'Devices_to_Watch_HBO_on_v4', 'remove_add_on_v4', 'Internet_Speed_for_HD_and_4K_v4', 'roku_related_questions_v4', 'amazon_related_questions_v4', 'Clear_Browser_Cache_v4', 'ads_on_ad_free_plan_v4', 'inappropriate_ads_v4', 'itunes_related_questions_v4', 'Internet_Speed_Recommendations_v4', 'NBA_Basketball_v5', 'unexpected_charges_v4', 'change_billing_date_v4', 'NFL_on_Hulu_v5', 'How_to_delete_a_profile_v4', 'Devices_to_Watch_Hulu_on_v4', 'Manage_your_Hulu_subscription_v4', 'cancel_hulu_account_v4', 'disney_bundle_v4', 'payment_issues_v4', 'home_network_location_v4', 'Main_Menu_v4', 'Resetting_Hulu_Password_v4', 'Update_Payment_v4', 'I_need_general_troubleshooting_help_v4', 'What_is_Hulu_v4', 'sprint_related_questions_v4', 'Log_into_TV_with_activation_code_v4', 'Game_of_Thrones_v4', 'video_playback_issues_v4', 'How_to_edit_a_profile_v4', 'Watchlist_Remove_Video_v4', 'spotify_related_questions_v4', 'Deactivate_Login_Sessions_v4', 'Transfer_to_Agent_v4', 'Use_Hulu_Internationally_v4']
+    # num_labels = len(label_list)
+    #
+    #
+    #
+    # train_examples = None
 
 
     train_examples = processor.get_RTE_as_train_k_shot('/export/home/Dataset/glue_data/RTE/train.tsv', args.kshot) #train_pu_half_v1.txt
     dev_examples = processor.get_RTE_as_dev('/export/home/Dataset/glue_data/RTE/dev.tsv')
     test_examples = processor.get_RTE_as_test('/export/home/Dataset/RTE/test_RTE_1235.txt')
     label_list = ["entailment", "not_entailment"]
+    # train_examples = get_data_hulu_fewshot('train', 5)
+    # train_examples, dev_examples, test_examples, label_list = load_CLINC150_with_specific_domain_sequence(args.DomainName, args.kshot, augment=False)
     num_labels = len(label_list)
     print('num_labels:', num_labels, 'training size:', len(train_examples), 'dev size:', len(dev_examples), 'test size:', len(test_examples))
 
@@ -566,10 +586,7 @@ def main():
 
     model = RobertaForSequenceClassification(num_labels)
     tokenizer = RobertaTokenizer.from_pretrained(pretrain_model_dir, do_lower_case=args.do_lower_case)
-    model.load_state_dict(torch.load('/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng/batchMixup_pretrain_dev_acc_seed_'+str(args.seed)+'.pt'))
-    if n_gpu > 1:
-        model = torch.nn.DataParallel(model)
-
+    # model.load_state_dict(torch.load('/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng/kshot_3_seed_16_RTE_acc_0.5523465703971119.pt'))
     model.to(device)
 
     param_optimizer = list(model.named_parameters())
@@ -665,22 +682,22 @@ def main():
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, segment_ids, label_ids = batch
 
-                for sample_i in range(args.beta_sampling_times):
-                    lambda_vec = beta.rvs(0.4, 0.4, size=1)[0]
-                    loss = model(input_ids, input_mask, label_ids, lambda_vec, is_train=True, use_mixup=args.use_mixup)
-                    if n_gpu > 1:
-                        loss = loss.mean() # mean() to average on multi-gpu.
-                    if args.gradient_accumulation_steps > 1:
-                        loss = loss / args.gradient_accumulation_steps
+                # for sample_i in range(args.beta_sampling_times):
+                lambda_vec = beta.rvs(0.4, 0.4, size=args.beta_sampling_times)
+                loss = model(input_ids, input_mask, label_ids, lambda_vec, is_train=True, use_mixup=args.use_mixup)
+                if n_gpu > 1:
+                    loss = loss.mean() # mean() to average on multi-gpu.
+                if args.gradient_accumulation_steps > 1:
+                    loss = loss / args.gradient_accumulation_steps
 
-                    loss.backward()
+                loss.backward()
 
-                    tr_loss += loss.item()
-                    nb_tr_examples += input_ids.size(0)
-                    nb_tr_steps += 1
+                tr_loss += loss.item()
+                nb_tr_examples += input_ids.size(0)
+                nb_tr_steps += 1
 
-                    optimizer.step()
-                    optimizer.zero_grad()
+                optimizer.step()
+                optimizer.zero_grad()
                 global_step += 1
                 iter_co+=1
                 # if iter_co %20==0:
@@ -756,8 +773,10 @@ if __name__ == "__main__":
 
 '''
 mixup:
-CUDA_VISIBLE_DEVICES=5,6,7 python -u train_RTE_batchMixup_finetune.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 0 --use_mixup --beta_sampling_times 15
+CUDA_VISIBLE_DEVICES=4 python -u train.RTE.mixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 0 --use_mixup --beta_sampling_times 15
 
+no mixup:
+CUDA_VISIBLE_DEVICES=5 python -u train_RTE.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 100000 --beta_sampling_times 1
 
 
 '''
