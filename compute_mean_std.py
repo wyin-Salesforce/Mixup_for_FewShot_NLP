@@ -6,11 +6,13 @@ import statistics
 
 # initializing list
 test_list = [
-82.69,
-83.12,
-84.59,
-82.69,
-84.69
+
+49.91,
+50.48,
+50.58,
+50.31,
+50.75,
+
 ]
 print('sum:', sum(test_list))
 average = round(sum(test_list)/len(test_list), 2)
