@@ -8,9 +8,9 @@ import statistics
 test_list = [
 
 50.31,
-50.05,
-51.18,
-50.31
+52.65,
+52.98,
+49.68
 
 ]
 print('sum:', sum(test_list))

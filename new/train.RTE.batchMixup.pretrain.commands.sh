@@ -1,5 +1,5 @@
 export BATCHMIXTIMES=400
-export SHOT=0.01
+export SHOT=0.25
 export BATCHSIZE=5
 export EPOCHSIZE=40
 
