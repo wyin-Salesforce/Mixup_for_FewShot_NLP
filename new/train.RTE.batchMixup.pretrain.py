@@ -239,10 +239,13 @@ class RteProcessor(DataProcessor):
         readfile.close()
         print('loaded  entail size:', len(examples_entail), 'non-entail size:', len(examples_non_entail))
         '''sampling'''
-        if k_shot == 0:
-            return examples_entail+examples_non_entail
+        all_examples = examples_entail+examples_non_entail
+        if k_shot ==0:
+            return all_examples
         else:
-            sampled_examples = random.sample(examples_entail, k_shot)+random.sample(examples_non_entail, k_shot)
+            all_size = len(all_examples)
+            select_size = int(all_size*k_shot)
+            sampled_examples = random.sample(all_examples, select_size)
             return sampled_examples
 
     def get_RTE_as_dev(self, filename):
@@ -495,7 +498,7 @@ def main():
                         help="Whether to run training.")
 
     parser.add_argument('--kshot',
-                        type=int,
+                        type=float,
                         default=5,
                         help="random seed for initialization")
     parser.add_argument("--do_eval",
@@ -539,7 +542,7 @@ def main():
                         type=int,
                         default=42,
                         help="random seed for initialization")
-    parser.add_argument('--beta_sampling_times',
+    parser.add_argument('--batch_mix_times',
                         type=int,
                         default=10,
                         help="random seed for initialization")
@@ -608,13 +611,6 @@ def main():
     processor = processors[task_name]()
     output_mode = output_modes[task_name]
 
-    # label_list = processor.get_labels() #["entailment", "neutral", "contradiction"]
-    # label_list = ['How_do_I_create_a_profile_v4', 'Profile_Switch_v4', 'Deactivate_Active_Devices_v4', 'Ads_on_Hulu_v4', 'Watching_Hulu_with_Live_TV_v4', 'Hulu_Costs_and_Commitments_v4', 'offline_downloads_v4', 'womens_world_cup_v5', 'forgot_username_v4', 'confirm_account_cancellation_v4', 'Devices_to_Watch_HBO_on_v4', 'remove_add_on_v4', 'Internet_Speed_for_HD_and_4K_v4', 'roku_related_questions_v4', 'amazon_related_questions_v4', 'Clear_Browser_Cache_v4', 'ads_on_ad_free_plan_v4', 'inappropriate_ads_v4', 'itunes_related_questions_v4', 'Internet_Speed_Recommendations_v4', 'NBA_Basketball_v5', 'unexpected_charges_v4', 'change_billing_date_v4', 'NFL_on_Hulu_v5', 'How_to_delete_a_profile_v4', 'Devices_to_Watch_Hulu_on_v4', 'Manage_your_Hulu_subscription_v4', 'cancel_hulu_account_v4', 'disney_bundle_v4', 'payment_issues_v4', 'home_network_location_v4', 'Main_Menu_v4', 'Resetting_Hulu_Password_v4', 'Update_Payment_v4', 'I_need_general_troubleshooting_help_v4', 'What_is_Hulu_v4', 'sprint_related_questions_v4', 'Log_into_TV_with_activation_code_v4', 'Game_of_Thrones_v4', 'video_playback_issues_v4', 'How_to_edit_a_profile_v4', 'Watchlist_Remove_Video_v4', 'spotify_related_questions_v4', 'Deactivate_Login_Sessions_v4', 'Transfer_to_Agent_v4', 'Use_Hulu_Internationally_v4']
-    # num_labels = len(label_list)
-    #
-    #
-    #
-    # train_examples = None
 
 
     train_examples = processor.get_RTE_as_train_k_shot('/export/home/Dataset/glue_data/RTE/train.tsv', args.kshot) #train_pu_half_v1.txt
@@ -730,7 +726,7 @@ def main():
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, segment_ids, label_ids = batch
                 real_batch_size = input_ids.shape[0]
-                lambda_vec = torch.rand(args.beta_sampling_times, real_batch_size).to(device)
+                lambda_vec = torch.rand(args.batch_mix_times, real_batch_size).to(device)
                 softmax_lambda_vec = nn.Softmax(dim=1)(lambda_vec) #(mix_time, batch_size)
                 # print('softmax_lambda_vec:', softmax_lambda_vec)
                 # softmax_lambda_vec = lambda_vec/(1e-8+torch.sum(lambda_vec, dim=1, keepdim=True))
@@ -746,9 +742,9 @@ def main():
                     mixup_logits = logits[real_batch_size:].view(-1, num_labels) #(mixup_times, 2)
                     # mixup_logits_repeat = torch.repeat_interleave(mixup_logits, repeats=real_batch_size, dim=0) #(mixup_times*batch_size, 2)
                     mixup_logits_repeat = tile(mixup_logits, 0, real_batch_size)
-                    label_id_repeat = label_ids.view(-1).repeat(args.beta_sampling_times) #(0,1,2,..batch, 0, 1,2,3...batch)
+                    label_id_repeat = label_ids.view(-1).repeat(args.batch_mix_times) #(0,1,2,..batch, 0, 1,2,3...batch)
                     mixup_loss_repeat = loss_fct(mixup_logits_repeat.view(-1, num_labels), label_id_repeat.view(-1))
-                    mixup_loss = torch.sum(mixup_loss_repeat.view(args.beta_sampling_times, real_batch_size)*softmax_lambda_vec, dim=1) #(mixup_time)
+                    mixup_loss = torch.sum(mixup_loss_repeat.view(args.batch_mix_times, real_batch_size)*softmax_lambda_vec, dim=1) #(mixup_time)
 
                     # loss_list = torch.cat([loss_origin, mixup_loss]) #(batch+mixup_times)
                     # loss = loss_list.mean()
@@ -831,7 +827,7 @@ def main():
                                 model_to_save = (
                                     model.module if hasattr(model, "module") else model
                                 )  # Take care of distributed/parallel training
-                                store_transformers_models(model_to_save, tokenizer, '/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng', 'batchMixup_pretrain_dev_acc_seed_'+str(args.seed)+'.pt')
+                                store_transformers_models(model_to_save, tokenizer, '/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng', 'batchMixup_pretrain_kshot_'+str(args.kshot)+'_dev_acc_seed_'+str(args.seed)+'.pt')
                             else:
                                 print('\ndev acc:', test_acc, ' max_dev_acc:', max_dev_acc, '\n')
                                 break
@@ -850,5 +846,5 @@ if __name__ == "__main__":
 
 '''
 mixup:
-CUDA_VISIBLE_DEVICES=7 python -u train_RTE_batchMixup_pretrain.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 0 --use_mixup --beta_sampling_times 400
+CUDA_VISIBLE_DEVICES=7 python -u train_RTE_batchMixup_pretrain.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 0 --use_mixup --batch_mix_times 400
 '''
