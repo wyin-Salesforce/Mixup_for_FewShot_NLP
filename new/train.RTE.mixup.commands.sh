@@ -1,5 +1,5 @@
 export BETATIMES=15
-export SHOT=0.25
+export SHOT=0.01
 export BATCHSIZE=5
 export EPOCHSIZE=20 #need only 10 for fine-tune
 
