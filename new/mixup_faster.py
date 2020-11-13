@@ -35,7 +35,7 @@ def mixup_layer(hidden_states_batch, labels, num_labels, lambda_values, classifi
             hidden_states_single_v1 = hidden_states_batch.repeat(batch_size, 1)
             hidden_states_single_v2 = tile(hidden_states_batch, 0, batch_size)#torch.repeat_interleave(hidden_states_batch, repeats=batch_size, dim=0)
             loss_fct = CrossEntropyLoss()
-            loss_list = []
+            loss_sum = 0.0
             for lambda_value in lambda_values:
                 combined_pairs = lambda_value*hidden_states_single_v1+(1.0-lambda_value)*hidden_states_single_v2 #(batch*batch, hidden)
                 logits = classification_function(combined_pairs) #(batch, tag_set)
@@ -51,10 +51,9 @@ def mixup_layer(hidden_states_batch, labels, num_labels, lambda_values, classifi
                 loss_v1 = loss_fct(logits.view(-1, num_labels), label_ids_v1.view(-1))
                 loss_v2 = loss_fct(logits.view(-1, num_labels), label_ids_v2.view(-1))
                 loss = lambda_value*loss_v1+(1.0-lambda_value)*loss_v2# + 1e-3*reg_loss
-                print('loss:', loss)
-                loss_list.append(loss)
-            print('loss_list:', loss_list)
-            return torch.cat(loss_list).mean()
+                loss_sum+=loss
+            # print('loss_list:', loss_list)
+            return loss_sum
         else:
             logits = classification_function(hidden_states_batch) #(batch, tag_set)
             loss_fct = CrossEntropyLoss()
