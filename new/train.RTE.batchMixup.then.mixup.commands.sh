@@ -1,5 +1,5 @@
 export BETATIMES=15
-export SHOT=0.75
+export SHOT=0.50
 export BATCHSIZE=5
 export EPOCHSIZE=5
 
