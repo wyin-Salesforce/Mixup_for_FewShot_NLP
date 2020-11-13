@@ -14,6 +14,7 @@ CUDA_VISIBLE_DEVICES=0 python -u train.RTE.batchMixup.pretrain.py \
     --max_seq_length 128 \
     --seed 42 \
     --kshot $SHOT \
+    --use_mixup\
     --batch_mix_times $BATCHMIXTIMES > log.RTE.batchMixup.pretrain.$SHOT.shot.42.txt 2>&1 &
 
 CUDA_VISIBLE_DEVICES=1 python -u train.RTE.batchMixup.pretrain.py \
@@ -27,6 +28,7 @@ CUDA_VISIBLE_DEVICES=1 python -u train.RTE.batchMixup.pretrain.py \
     --max_seq_length 128 \
     --seed 16 \
     --kshot $SHOT \
+    --use_mixup\
     --batch_mix_times $BATCHMIXTIMES > log.RTE.batchMixup.pretrain.$SHOT.shot.16.txt 2>&1 &
 
 CUDA_VISIBLE_DEVICES=2 python -u train.RTE.batchMixup.pretrain.py \
@@ -40,6 +42,7 @@ CUDA_VISIBLE_DEVICES=2 python -u train.RTE.batchMixup.pretrain.py \
     --max_seq_length 128 \
     --seed 32 \
     --kshot $SHOT \
+    --use_mixup\
     --batch_mix_times $BATCHMIXTIMES > log.RTE.batchMixup.pretrain.$SHOT.shot.32.txt 2>&1 &
 
 CUDA_VISIBLE_DEVICES=3 python -u train.RTE.batchMixup.pretrain.py \
@@ -53,6 +56,7 @@ CUDA_VISIBLE_DEVICES=3 python -u train.RTE.batchMixup.pretrain.py \
     --max_seq_length 128 \
     --seed 64 \
     --kshot $SHOT \
+    --use_mixup\
     --batch_mix_times $BATCHMIXTIMES > log.RTE.batchMixup.pretrain.$SHOT.shot.64.txt 2>&1 &
 
 # CUDA_VISIBLE_DEVICES=4 python -u train.RTE.batchMixup.pretrain.py \
@@ -65,6 +69,6 @@ CUDA_VISIBLE_DEVICES=3 python -u train.RTE.batchMixup.pretrain.py \
 #     --learning_rate 1e-6 \
 #     --max_seq_length 128 \
 #     --seed 128 \
-#     --kshot $SHOT \
-#     --batch_mix_times $BATCHMIXTIMES \
-#     --beta_sampling_times $BETATIMES > log.RTE.batchMixup.128.txt 2>&1 &
+    # --kshot $SHOT \
+    # --use_mixup\
+    # --batch_mix_times $BATCHMIXTIMES > log.RTE.batchMixup.128.txt 2>&1 &

@@ -98,11 +98,6 @@ class RobertaForSequenceClassification(nn.Module):
             combined_pairs = torch.cat([hidden_states_single, mixed_reps_matrix],dim=0)#(batch+mix_times, hidden)
             score_single = self.single_hidden2tag(combined_pairs) #(batch, tag_set)
             return score_single
-            '''dot reg'''
-            # dot_batch = torch.sigmoid(torch.mm(hidden_states_single,torch.transpose(hidden_states_single, 0,1))) #(batch, batch)
-            # remail_batch = dot_batch - torch.eye(batch_size).to(device)
-            # regular_loss = (remail_batch**2).sum()
-            # return score_single, regular_loss
 
         else:
             score_single = self.single_hidden2tag(hidden_states_single) #(batch, tag_set)
