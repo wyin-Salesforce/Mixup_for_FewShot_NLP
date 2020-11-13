@@ -735,10 +735,8 @@ def main():
                     mixup_loss_repeat = loss_fct(mixup_logits_repeat.view(-1, num_labels), label_id_repeat.view(-1))
                     mixup_loss = torch.sum(mixup_loss_repeat.view(args.batch_mix_times, real_batch_size)*softmax_lambda_vec, dim=1) #(mixup_time)
 
-                    # loss_list = torch.cat([loss_origin, mixup_loss]) #(batch+mixup_times)
-                    # loss = loss_list.mean()
-                    mixup_alpha=0.0
-                    loss = mixup_alpha*loss_origin.mean()+(1-mixup_alpha)*mixup_loss.mean()
+                    loss = mixup_loss.mean()
+                    print('loss:', loss)
 
                 else:
                     loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1))
