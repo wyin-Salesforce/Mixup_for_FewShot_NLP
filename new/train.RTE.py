@@ -198,7 +198,7 @@ class RteProcessor(DataProcessor):
         print('loaded  entail size:', len(examples_entail), 'non-entail size:', len(examples_non_entail))
         '''sampling'''
         all_examples = examples_entail+examples_non_entail
-        if k_shot ==0:
+        if int(k_shot) ==0:
             return all_examples
         else:
             all_size = len(all_examples)
@@ -445,7 +445,7 @@ def main():
                         help="Whether to run training.")
 
     parser.add_argument('--kshot',
-                        type=int,
+                        type=float,
                         default=5,
                         help="random seed for initialization")
     parser.add_argument("--do_eval",
