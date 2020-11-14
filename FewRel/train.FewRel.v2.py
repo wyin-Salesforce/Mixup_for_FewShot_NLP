@@ -38,15 +38,10 @@ from scipy.special import softmax
 # from scipy.stats import pearsonr, spearmanr
 # from sklearn.metrics import matthews_corrcoef, f1_score
 
-from preprocess_CLINC150 import load_CLINC150_with_specific_domain_sequence
-
 from transformers.tokenization_roberta import RobertaTokenizer
 from transformers.optimization import AdamW
 from transformers.modeling_roberta import RobertaModel#RobertaForSequenceClassification
 
-# from transformers.modeling_bert import BertModel
-# from transformers.tokenization_bert import BertTokenizer
-# from bert_common_functions import store_transformers_models
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt = '%m/%d/%Y %H:%M:%S',
@@ -57,7 +52,9 @@ logger = logging.getLogger(__name__)
 # import torch.nn as nn
 
 bert_hidden_dim = 1024
-pretrain_model_dir = 'roberta-large' #'roberta-large' , 'roberta-large-mnli', 'bert-large-uncased'
+pretrain_model_dir = 'roberta-large-mnli' #'roberta-large' , 'roberta-large-mnli', 'bert-large-uncased'
+
+
 
 def store_transformers_models(model, tokenizer, output_dir, flag_str):
     '''
@@ -78,7 +75,8 @@ class RobertaForSequenceClassification(nn.Module):
         self.tagset_size = tagset_size
 
         self.roberta_single= RobertaModel.from_pretrained(pretrain_model_dir)
-        # self.roberta_single= BertModel.from_pretrained(pretrain_model_dir)
+        self.roberta_single.load_state_dict(torch.load('/export/home/Dataset/BERT_pretrained_mine/MNLI_pretrained/_acc_0.9040886899918633.pt'), strict=False)
+        self.hidden_layer_0 = nn.Linear(bert_hidden_dim*3, bert_hidden_dim)
         self.hidden_layer_1 = nn.Linear(bert_hidden_dim, bert_hidden_dim)
         self.hidden_layer_2 = nn.Linear(bert_hidden_dim, bert_hidden_dim)
         self.single_hidden2tag = RobertaClassificationHead(bert_hidden_dim, tagset_size)
@@ -86,33 +84,19 @@ class RobertaForSequenceClassification(nn.Module):
         # self.roberta_pair = RobertaModel.from_pretrained(pretrain_model_dir)
         # self.pair_hidden2score = nn.Linear(bert_hidden_dim, 1)
 
-    def forward(self, input_ids, input_mask, input_seg, labels, lambda_value, is_train = False):
-        '''
-        lambda_value: (mix_times, batch_size), already after softmax
-        '''
+    def forward(self, input_ids, input_mask, span_a_mask, span_b_mask):
+        # single_train_input_ids, single_train_input_mask, single_train_segment_ids, single_train_label_ids = batch_single
         outputs_single = self.roberta_single(input_ids, input_mask, None)
-        hidden_states_single = torch.tanh(self.hidden_layer_2(torch.tanh(self.hidden_layer_1(outputs_single[1])))) #(batch, hidden)
-        # print('hidden_states_single:', hidden_states_single)
-        '''mixup'''
-        if is_train:
-            batch_size = input_ids.shape[0]#.cpu().numpy()
-            mixed_reps_matrix = torch.mm(lambda_value, hidden_states_single) #(mix_times, hidden_dim)
-            # hidden_states_single_v1 = hidden_states_single.repeat(batch_size, 1)
-            # hidden_states_single_v2 = torch.repeat_interleave(hidden_states_single, repeats=batch_size, dim=0)
-            # combined_pairs = lambda_value*hidden_states_single_v1+(1.0-lambda_value)*hidden_states_single_v2 #(batch*batch, hidden)
-            combined_pairs = torch.cat([hidden_states_single, mixed_reps_matrix],dim=0)#(batch+mix_times, hidden)
-            score_single = self.single_hidden2tag(combined_pairs) #(batch, tag_set)
-            return score_single
-            '''dot reg'''
-            # dot_batch = torch.sigmoid(torch.mm(hidden_states_single,torch.transpose(hidden_states_single, 0,1))) #(batch, batch)
-            # remail_batch = dot_batch - torch.eye(batch_size).to(device)
-            # regular_loss = (remail_batch**2).sum()
-            # return score_single, regular_loss
+        output_last_layer_tensor3 = outputs_single[0] #(batch_size, sequence_length, hidden_size)`)
+        span_a_reps = torch.sum(output_last_layer_tensor3*span_a_mask.unsqueeze(2), dim=1) #(batch, hidden)
+        span_b_reps = torch.sum(output_last_layer_tensor3*span_b_mask.unsqueeze(2), dim=1) #(batch, hidden)
+        combined_rep = torch.cat([span_a_reps, span_b_reps, span_a_reps*span_b_reps],dim=1) #(batch, 3*hidden)
+        MLP_input = torch.tanh(self.hidden_layer_0(combined_rep))#(batch, hidden)
 
-        else:
-            score_single = self.single_hidden2tag(hidden_states_single) #(batch, tag_set)
-            # score_single = self.single_hidden2tag(torch.cat([hidden_states_single, hidden_states_single],dim=1)) #(batch, tag_set)
-            return score_single
+        hidden_states_single = torch.tanh(self.hidden_layer_2(torch.tanh(self.hidden_layer_1(MLP_input)))) #(batch, hidden)
+
+        score_single = self.single_hidden2tag(hidden_states_single) #(batch, tag_set)
+        return score_single
 
 
 
@@ -137,7 +121,7 @@ class RobertaClassificationHead(nn.Module):
 class InputExample(object):
     """A single training/test example for simple sequence classification."""
 
-    def __init__(self, guid, text_a, text_b=None, label=None):
+    def __init__(self, guid, text_a=None, span_a_left=None, span_a_right=None, text_b=None, span_b_left=None, span_b_right=None, label=None):
         """Constructs a InputExample.
 
         Args:
@@ -151,17 +135,24 @@ class InputExample(object):
         """
         self.guid = guid
         self.text_a = text_a
+        self.span_a_left = span_a_left
+        self.span_a_right = span_a_right
+
         self.text_b = text_b
+        self.span_b_left = span_b_left
+        self.span_b_right = span_b_right
         self.label = label
 
 
 class InputFeatures(object):
     """A single set of features of data."""
 
-    def __init__(self, input_ids, input_mask, segment_ids, label_id):
+    def __init__(self, input_ids, input_mask, segment_ids, span_a_mask, span_b_mask, label_id):
         self.input_ids = input_ids
         self.input_mask = input_mask
         self.segment_ids = segment_ids
+        self.span_a_mask = span_a_mask
+        self.span_b_mask = span_b_mask
         self.label_id = label_id
 
 
@@ -195,82 +186,110 @@ class DataProcessor(object):
 class RteProcessor(DataProcessor):
     """Processor for the RTE data set (GLUE version)."""
 
-    def get_MRPC_train_k_shot(self, folder, k_shot):
+    def load_FewRel_data(self, k_shot):
+        dev_relation_2_examples = {}
+        filenames = ['train_wiki.json', 'val_wiki.json']
+        for filename in filenames:
+            with open('/export/home/Dataset/FewRel.1.0/'+filename) as json_file:
+                dev_data = json.load(json_file)
+                for relation, example_list in dev_data.items():
+                    assert len(example_list) == 700
+                    tup_list = []
+                    for example in example_list:
+                        sent = ' '.join(example.get('tokens'))
+                        head_left = example.get('h')[2][0][0]
+                        head_right = example.get('h')[2][0][-1]
+                        tail_left = example.get('t')[2][0][0]
+                        tail_right = example.get('t')[2][0][-1]
+                        tup_list.append((sent, head_left, head_right, tail_left, tail_right))
+                    assert len(tup_list) == 700
+                    dev_relation_2_examples[relation] = tup_list
+            json_file.close()
 
-        examples_pos = []
-        examples_neg = []
-        readfile = codecs.open(folder+'train.tsv', 'r', 'utf-8')
-        line_co = 0
-        for line in readfile:
-            if line_co>0:
-                parts = line.strip().split('\t')
-                label = int(parts[0])
-                if label != 0 and label !=1:
-                    print('label:', label)
-                    print('line:', line)
-                    exit(0)
-                sent1 = parts[-2].strip()
-                sent2 = parts[-1].strip()
-                if label == 1:
-                    examples_pos.append(
-                        InputExample(guid='no', text_a=sent1, text_b=sent2, label=label))
-                else:
-                    examples_neg.append(
-                        InputExample(guid='no', text_a=sent1, text_b=sent2, label=label))
-            line_co+=1
-        readfile.close()
-        print('examples pos sizse:', len(examples_pos), ' neg size:', len(examples_neg))
-        if k_shot> 99999:
-            return examples_pos+examples_neg
-        else:
-            '''sampling'''
-            sampled_examples = random.sample(examples_pos, k_shot)+random.sample(examples_neg, k_shot)
-            return sampled_examples
+        relation_list = list(dev_relation_2_examples.keys())
+        assert len(relation_list) == 80
+        dev_4_train = {}
+        dev_4_dev = {}
+        dev_4_test = {}
+        '''400, 100, 200'''
+        for relation, ex_list in dev_relation_2_examples.items():
+            random.shuffle(ex_list)
+            dev_4_train[relation] = ex_list[:400]
+            dev_4_dev[relation] = ex_list[400:500]
+            dev_4_test[relation] = ex_list[500:]
 
-    def get_MRPC_dev_and_test(self, folder):
-        filenames = ['dev.tsv', 'test.labeled.tsv']
-        examples_list = []
-        for _, filename in enumerate(filenames):
-            examples = []
-            readfile = codecs.open(folder+filename, 'r', 'utf-8')
-            line_co = 0
-            for line in readfile:
-                if line_co>0:
-                    parts = line.strip().split('\t')
-                    label = int(parts[0])
-                    if label != 0 and label !=1:
-                        print('label:', label)
-                        print('line:', line)
-                        exit(0)
-                    sent1 = parts[-2].strip()
-                    sent2 = parts[-1].strip()
-                    examples.append(
-                        InputExample(guid='no', text_a=sent1, text_b=sent2, label=label))
-                line_co+=1
-            readfile.close()
-            print('examples size:', len(examples))
-            examples_list.append(examples)
-        return examples_list
+        selected_dev_4_train = {}
+        for relation, ex_list in dev_4_train.items():
+            select_size = int(len(ex_list)*k_shot)
+            selected_dev_4_train[relation] = ex_list if k_shot == 0 else random.sample(ex_list, select_size)
+
+        '''build train'''
+        train_examples = []
+        ex_id = 0
+        for relation, example_list in selected_dev_4_train.items():
+            for example in example_list:
+                sentence, head_left, head_right, tail_left, tail_right = example
+                train_examples.append(
+                    InputExample(guid='train', text_a=sentence, span_a_left=head_left, span_a_right=head_right, text_b=None, span_b_left=tail_left, span_b_right=tail_right, label=relation))
+
+        '''build dev'''
+        dev_examples = []
+        for relation, example_list in dev_4_dev.items():
+            for example in example_list:
+                sentence, head_left, head_right, tail_left, tail_right = example
+                dev_examples.append(
+                    InputExample(guid='dev', text_a=sentence, span_a_left=head_left, span_a_right=head_right, text_b=None, span_b_left=tail_left, span_b_right=tail_right, label=relation))
+
+        # print('dev_examples:', len(dev_examples))
+        '''build test'''
+        test_examples = []
+        for relation, example_list in dev_4_test.items():
+            for example in example_list:
+                sentence, head_left, head_right, tail_left, tail_right = example
+                test_examples.append(
+                    InputExample(guid='test', text_a=sentence, span_a_left=head_left, span_a_right=head_right, text_b=None, span_b_left=tail_left, span_b_right=tail_right, label=relation))
+
+
+
+        return train_examples, dev_examples, test_examples, relation_list
 
     def get_labels(self):
         'here we keep the three-way in MNLI training '
         return ["entailment", "not_entailment"]
         # return ["entailment", "neutral", "contradiction"]
 
-    def _create_examples(self, lines, set_type):
-        """Creates examples for the training and dev sets."""
-        examples = []
-        for (i, line) in enumerate(lines):
-            if i == 0:
-                continue
-            guid = "%s-%s" % (set_type, line[0])
-            text_a = line[1]
-            text_b = line[2]
-            label = line[-1]
-            examples.append(
-                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
-        return examples
 
+
+def wordpairID_2_tokenpairID(sentence, wordindex_left, wordindex_right, full_token_id_list, tokenizer, sent_1=True):
+    '''pls note that the input indices pair include the b in (a,b), but the output doesn't'''
+    '''first find the position of [2,2]'''
+    position_two_two = 0
+    for i in range(len(full_token_id_list)):
+        if full_token_id_list[i]==2 and full_token_id_list[i+1]==2:
+            position_two_two = i
+            break
+    span = ' '.join(sentence.split()[wordindex_left: wordindex_right+1])
+    if wordindex_left!=0:
+        '''this span is the begining of the sent'''
+        span=' '+span
+
+    span_token_list = tokenizer.tokenize(span)
+    span_id_list = tokenizer.convert_tokens_to_ids(span_token_list)
+    # print('span:', span, 'span_id_list:', span_id_list)
+    if sent_1:
+        # for i in range(wordindex_left, len(full_token_id_list)-len(span_id_list)):
+        for i in range(wordindex_left, position_two_two):
+            if full_token_id_list[i:i+len(span_id_list)] == span_id_list:
+                return i, i+len(span_id_list), span_token_list
+
+        return None, None, span_token_list
+    else:
+        # print('position_two_two:', position_two_two)
+        for i in range(position_two_two+2, len(full_token_id_list)):
+            if full_token_id_list[i:i+len(span_id_list)] == span_id_list:
+                return i, i+len(span_id_list), span_token_list
+
+        return None, None, span_token_list
 
 
 def convert_examples_to_features(examples, label_list, max_seq_length,
@@ -296,15 +315,18 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
     label_map = {label : i for i, label in enumerate(label_list)}
 
     features = []
+    give_up = 0
     for (ex_index, example) in enumerate(examples):
         if ex_index % 10000 == 0:
             logger.info("Writing example %d of %d" % (ex_index, len(examples)))
 
         tokens_a = tokenizer.tokenize(example.text_a)
+        # print('tokens_a:', tokens_a)
 
         tokens_b = None
         if example.text_b:
             tokens_b = tokenizer.tokenize(example.text_b)
+            # print('tokens_b:', tokens_b)
             # Modifies `tokens_a` and `tokens_b` in place so that the total
             # length is less than the specified length.
             # Account for [CLS], [SEP], [SEP] with "- 3". " -4" for RoBERTa.
@@ -316,24 +338,6 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
             if len(tokens_a) > max_seq_length - special_tokens_count:
                 tokens_a = tokens_a[:(max_seq_length - special_tokens_count)]
 
-        # The convention in BERT is:
-        # (a) For sequence pairs:
-        #  tokens:   [CLS] is this jack ##son ##ville ? [SEP] no it is not . [SEP]
-        #  type_ids:   0   0  0    0    0     0       0   0   1  1  1  1   1   1
-        # (b) For single sequences:
-        #  tokens:   [CLS] the dog is hairy . [SEP]
-        #  type_ids:   0   0   0   0  0     0   0
-        #
-        # Where "type_ids" are used to indicate whether this is the first
-        # sequence or the second sequence. The embedding vectors for `type=0` and
-        # `type=1` were learned during pre-training and are added to the wordpiece
-        # embedding vector (and position vector). This is not *strictly* necessary
-        # since the [SEP] token unambiguously separates the sequences, but it makes
-        # it easier for the model to learn the concept of sequences.
-        #
-        # For classification tasks, the first vector (corresponding to [CLS]) is
-        # used as as the "sentence vector". Note that this only makes sense because
-        # the entire model is fine-tuned.
         tokens = tokens_a + [sep_token]
         if sep_token_extra:
             # roberta uses an extra separator b/w pairs of sentences
@@ -379,21 +383,29 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
         else:
             raise KeyError(output_mode)
 
-        # if ex_index < 5:
-        #     logger.info("*** Example ***")
-        #     logger.info("guid: %s" % (example.guid))
-        #     logger.info("tokens: %s" % " ".join(
-        #             [str(x) for x in tokens]))
-        #     logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
-        #     logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
-        #     logger.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
-        #     logger.info("label: %s (id = %d)" % (example.label, label_id))
 
-        features.append(
-                InputFeatures(input_ids=input_ids,
-                              input_mask=input_mask,
-                              segment_ids=segment_ids,
-                              label_id=label_id))
+        span_a_left, span_a_right, span_a_token_list = wordpairID_2_tokenpairID(example.text_a, example.span_a_left, example.span_a_right, input_ids, tokenizer, sent_1=True)
+        span_b_left, span_b_right, span_b_token_list = wordpairID_2_tokenpairID(example.text_a, example.span_b_left, example.span_b_right, input_ids, tokenizer, sent_1=True)
+        # print('span_b_left, span_b_right, span_b_token_list:', span_b_left, span_b_right, span_b_token_list)
+        if span_a_left is None or span_b_left is None:
+            '''give up this pair'''
+            give_up+=1
+            continue
+        else:
+            span_a_mask = [0]*len(input_ids)
+            for i in range(span_a_left, span_a_right):
+                span_a_mask[i]=1
+            span_b_mask = [0]*len(input_ids)
+            for i in range(span_b_left, span_b_right):
+                span_b_mask[i]=1
+            features.append(
+                    InputFeatures(input_ids=input_ids,
+                                  input_mask=input_mask,
+                                  segment_ids=segment_ids,
+                                  span_a_mask = span_a_mask,
+                                  span_b_mask = span_b_mask,
+                                  label_id=label_id))
+    print('input example size:', len(examples), ' give_up:', give_up, ' remain:', len(features))
     return features
 
 def _truncate_seq_pair(tokens_a, tokens_b, max_length):
@@ -457,7 +469,7 @@ def main():
                         help="Whether to run training.")
 
     parser.add_argument('--kshot',
-                        type=int,
+                        type=float,
                         default=5,
                         help="random seed for initialization")
     parser.add_argument("--do_eval",
@@ -570,32 +582,16 @@ def main():
     processor = processors[task_name]()
     output_mode = output_modes[task_name]
 
-    # label_list = processor.get_labels() #["entailment", "neutral", "contradiction"]
-    # label_list = ['How_do_I_create_a_profile_v4', 'Profile_Switch_v4', 'Deactivate_Active_Devices_v4', 'Ads_on_Hulu_v4', 'Watching_Hulu_with_Live_TV_v4', 'Hulu_Costs_and_Commitments_v4', 'offline_downloads_v4', 'womens_world_cup_v5', 'forgot_username_v4', 'confirm_account_cancellation_v4', 'Devices_to_Watch_HBO_on_v4', 'remove_add_on_v4', 'Internet_Speed_for_HD_and_4K_v4', 'roku_related_questions_v4', 'amazon_related_questions_v4', 'Clear_Browser_Cache_v4', 'ads_on_ad_free_plan_v4', 'inappropriate_ads_v4', 'itunes_related_questions_v4', 'Internet_Speed_Recommendations_v4', 'NBA_Basketball_v5', 'unexpected_charges_v4', 'change_billing_date_v4', 'NFL_on_Hulu_v5', 'How_to_delete_a_profile_v4', 'Devices_to_Watch_Hulu_on_v4', 'Manage_your_Hulu_subscription_v4', 'cancel_hulu_account_v4', 'disney_bundle_v4', 'payment_issues_v4', 'home_network_location_v4', 'Main_Menu_v4', 'Resetting_Hulu_Password_v4', 'Update_Payment_v4', 'I_need_general_troubleshooting_help_v4', 'What_is_Hulu_v4', 'sprint_related_questions_v4', 'Log_into_TV_with_activation_code_v4', 'Game_of_Thrones_v4', 'video_playback_issues_v4', 'How_to_edit_a_profile_v4', 'Watchlist_Remove_Video_v4', 'spotify_related_questions_v4', 'Deactivate_Login_Sessions_v4', 'Transfer_to_Agent_v4', 'Use_Hulu_Internationally_v4']
-    # num_labels = len(label_list)
-    #
-    #
-    #
-    # train_examples = None
 
 
-    train_examples = processor.get_MRPC_train_k_shot('/export/home/Dataset/glue_data/MRPC/', args.kshot)
-    dev_examples, test_examples  = processor.get_MRPC_dev_and_test('/export/home/Dataset/glue_data/MRPC/')
-    label_list = [0, 1]
-    # train_examples = get_data_hulu_fewshot('train', 5)
-    # train_examples, dev_examples, test_examples, label_list = load_CLINC150_with_specific_domain_sequence(args.DomainName, args.kshot, augment=False)
+    train_examples, dev_examples, test_examples, label_list = processor.load_FewRel_data(args.kshot)
+
     num_labels = len(label_list)
     print('num_labels:', num_labels, 'training size:', len(train_examples), 'dev size:', len(dev_examples), 'test size:', len(test_examples))
 
-    num_train_optimization_steps = None
-    num_train_optimization_steps = int(
-        len(train_examples) / args.train_batch_size / args.gradient_accumulation_steps) * args.num_train_epochs
-    if args.local_rank != -1:
-        num_train_optimization_steps = num_train_optimization_steps // torch.distributed.get_world_size()
 
     model = RobertaForSequenceClassification(num_labels)
     tokenizer = RobertaTokenizer.from_pretrained(pretrain_model_dir, do_lower_case=args.do_lower_case)
-
     model.to(device)
 
     param_optimizer = list(model.named_parameters())
@@ -639,9 +635,12 @@ def main():
         dev_all_input_ids = torch.tensor([f.input_ids for f in dev_features], dtype=torch.long)
         dev_all_input_mask = torch.tensor([f.input_mask for f in dev_features], dtype=torch.long)
         dev_all_segment_ids = torch.tensor([f.segment_ids for f in dev_features], dtype=torch.long)
+        dev_all_span_a_mask = torch.tensor([f.span_a_mask for f in dev_features], dtype=torch.float)
+        dev_all_span_b_mask = torch.tensor([f.span_b_mask for f in dev_features], dtype=torch.float)
+
         dev_all_label_ids = torch.tensor([f.label_id for f in dev_features], dtype=torch.long)
 
-        dev_data = TensorDataset(dev_all_input_ids, dev_all_input_mask, dev_all_segment_ids, dev_all_label_ids)
+        dev_data = TensorDataset(dev_all_input_ids, dev_all_input_mask, dev_all_segment_ids, dev_all_span_a_mask, dev_all_span_b_mask, dev_all_label_ids)
         dev_sampler = SequentialSampler(dev_data)
         dev_dataloader = DataLoader(dev_data, sampler=dev_sampler, batch_size=args.eval_batch_size)
 
@@ -661,22 +660,28 @@ def main():
         eval_all_input_ids = torch.tensor([f.input_ids for f in test_features], dtype=torch.long)
         eval_all_input_mask = torch.tensor([f.input_mask for f in test_features], dtype=torch.long)
         eval_all_segment_ids = torch.tensor([f.segment_ids for f in test_features], dtype=torch.long)
+        eval_all_span_a_mask = torch.tensor([f.span_a_mask for f in test_features], dtype=torch.float)
+        eval_all_span_b_mask = torch.tensor([f.span_b_mask for f in test_features], dtype=torch.float)
+        # eval_all_pair_ids = [f.pair_id for f in test_features]
         eval_all_label_ids = torch.tensor([f.label_id for f in test_features], dtype=torch.long)
 
-        eval_data = TensorDataset(eval_all_input_ids, eval_all_input_mask, eval_all_segment_ids, eval_all_label_ids)
+        eval_data = TensorDataset(eval_all_input_ids, eval_all_input_mask, eval_all_segment_ids, eval_all_span_a_mask, eval_all_span_b_mask, eval_all_label_ids)
         eval_sampler = SequentialSampler(eval_data)
         test_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
 
         logger.info("***** Running training *****")
-        logger.info("  Num examples = %d", len(train_examples))
+        logger.info("  Num examples = %d", len(train_features))
         logger.info("  Batch size = %d", args.train_batch_size)
-        logger.info("  Num steps = %d", num_train_optimization_steps)
+        # logger.info("  Num steps = %d", num_train_optimization_steps)
         all_input_ids = torch.tensor([f.input_ids for f in train_features], dtype=torch.long)
         all_input_mask = torch.tensor([f.input_mask for f in train_features], dtype=torch.long)
         all_segment_ids = torch.tensor([f.segment_ids for f in train_features], dtype=torch.long)
+        all_span_a_mask = torch.tensor([f.span_a_mask for f in train_features], dtype=torch.float)
+        all_span_b_mask = torch.tensor([f.span_b_mask for f in train_features], dtype=torch.float)
+
         all_label_ids = torch.tensor([f.label_id for f in train_features], dtype=torch.long)
 
-        train_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+        train_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_span_a_mask, all_span_b_mask, all_label_ids)
         train_sampler = RandomSampler(train_data)
 
         train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=args.train_batch_size)
@@ -689,39 +694,16 @@ def main():
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
                 model.train()
                 batch = tuple(t.to(device) for t in batch)
-                input_ids, input_mask, segment_ids, label_ids = batch
-                real_batch_size = input_ids.shape[0]
-                lambda_vec = torch.rand(args.beta_sampling_times, real_batch_size).to(device)
-                softmax_lambda_vec = nn.Softmax(dim=1)(lambda_vec) #(mix_time, batch_size)
-                # print('softmax_lambda_vec:', softmax_lambda_vec)
-                # softmax_lambda_vec = lambda_vec/(1e-8+torch.sum(lambda_vec, dim=1, keepdim=True))
-                '''use mixup???'''
-                use_mixup=args.use_mixup
-                logits = model(input_ids, input_mask, None, None, lambda_vec, is_train=use_mixup)
-                loss_fct = CrossEntropyLoss(reduction='none')
+                input_ids, input_mask, segment_ids, span_a_mask, span_b_mask, label_ids = batch
 
-                if use_mixup:
-                    '''mixup loss'''
-                    loss_origin = loss_fct(logits[:real_batch_size].view(-1, num_labels), label_ids.view(-1)) #batch_ize
+                #input_ids, input_mask, span_a_mask, span_b_mask
+                logits = model(input_ids, input_mask, span_a_mask, span_b_mask)
+                loss_fct = CrossEntropyLoss()
 
-                    mixup_logits = logits[real_batch_size:].view(-1, num_labels) #(mixup_times, 2)
-                    mixup_logits_repeat = torch.repeat_interleave(mixup_logits, repeats=real_batch_size, dim=0) #(mixup_times*batch_size, 2)
-                    label_id_repeat = label_ids.view(-1).repeat(args.beta_sampling_times) #(0,1,2,..batch, 0, 1,2,3...batch)
-                    mixup_loss_repeat = loss_fct(mixup_logits_repeat.view(-1, num_labels), label_id_repeat.view(-1))
-                    mixup_loss = torch.sum(mixup_loss_repeat.view(args.beta_sampling_times, real_batch_size)*softmax_lambda_vec, dim=1) #(mixup_time)
-
-                    # loss_list = torch.cat([loss_origin, mixup_loss]) #(batch+mixup_times)
-                    # loss = loss_list.mean()
-                    mixup_alpha=0.0
-                    loss = mixup_alpha*loss_origin.mean()+(1-mixup_alpha)*mixup_loss.mean()
-
-                else:
-                    loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1))
+                loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1))
 
                 if n_gpu > 1:
                     loss = loss.mean() # mean() to average on multi-gpu.
-                if args.gradient_accumulation_steps > 1:
-                    loss = loss / args.gradient_accumulation_steps
 
                 loss.backward()
 
@@ -735,6 +717,7 @@ def main():
                 iter_co+=1
                 # if iter_co %20==0:
                 if iter_co % len(train_dataloader)==0:
+                    # if iter_co % (len(train_dataloader)//2)==0:
                     '''
                     start evaluate on dev set after this epoch
                     '''
@@ -745,10 +728,10 @@ def main():
 
                         if idd == 0:
                             logger.info("***** Running dev *****")
-                            logger.info("  Num examples = %d", len(dev_examples))
+                            logger.info("  Num examples = %d", len(dev_features))
                         else:
                             logger.info("***** Running test *****")
-                            logger.info("  Num examples = %d", len(test_examples))
+                            logger.info("  Num examples = %d", len(test_features))
                         # logger.info("  Batch size = %d", args.eval_batch_size)
 
                         eval_loss = 0
@@ -756,15 +739,17 @@ def main():
                         preds = []
                         gold_label_ids = []
                         # print('Evaluating...')
-                        for input_ids, input_mask, segment_ids, label_ids in dev_or_test_dataloader:
+                        for input_ids, input_mask, segment_ids, span_a_mask, span_b_mask, label_ids in dev_or_test_dataloader:
                             input_ids = input_ids.to(device)
                             input_mask = input_mask.to(device)
                             segment_ids = segment_ids.to(device)
+                            span_a_mask = span_a_mask.to(device)
+                            span_b_mask = span_b_mask.to(device)
                             label_ids = label_ids.to(device)
                             gold_label_ids+=list(label_ids.detach().cpu().numpy())
 
                             with torch.no_grad():
-                                logits = model(input_ids, input_mask, None, None, 0.0, is_train=False)
+                                logits = model(input_ids, input_mask, span_a_mask, span_b_mask)
                             if len(preds) == 0:
                                 preds.append(logits.detach().cpu().numpy())
                             else:
@@ -775,51 +760,42 @@ def main():
                         pred_probs = softmax(preds,axis=1)
                         pred_label_ids = list(np.argmax(pred_probs, axis=1))
 
-                        gold_label_ids = gold_label_ids
                         assert len(pred_label_ids) == len(gold_label_ids)
                         hit_co = 0
                         for k in range(len(pred_label_ids)):
                             if pred_label_ids[k] == gold_label_ids[k]:
                                 hit_co +=1
-                        acc = hit_co/len(gold_label_ids)
+                        test_acc = hit_co/len(gold_label_ids)
+                        f1 = test_acc
 
-                        overlap = 0
-                        for k in range(len(pred_label_ids)):
-                            if pred_label_ids[k] == gold_label_ids[k] and gold_label_ids[k]==1:
-                                overlap +=1
-                        recall = overlap/(1e-6+sum(gold_label_ids))
-                        precision = overlap/(1e-6+sum(pred_label_ids))
-                        test_acc = 2*recall*precision/(1e-6+recall+precision)
 
                         if idd == 0: # this is dev
-                            if test_acc > max_dev_acc:
-                                max_dev_acc = test_acc
-                                print('\ndev acc:', test_acc, ' max_dev_acc:', max_dev_acc, '\n')
+                            if f1 > max_dev_acc:
+                                max_dev_acc = f1
+                                print('\ndev acc :', f1, ' max_dev_acc:', max_dev_acc, '\n')
                                 # '''store the model, because we can test after a max_dev acc reached'''
                                 # model_to_save = (
                                 #     model.module if hasattr(model, "module") else model
                                 # )  # Take care of distributed/parallel training
-                                # store_transformers_models(model_to_save, tokenizer, '/export/home/Dataset/BERT_pretrained_mine/mixup_wenpeng', 'kshot_'+str(args.kshot)+'_seed_'+str(args.seed)+'_MRPC_acc_'+str(max_dev_acc)+'.pt')
+                                # store_transformers_models(model_to_save, tokenizer, '/export/home/Dataset/BERT_pretrained_mine/event_2_nli', 'mnli_mypretrained_f1_'+str(max_dev_acc)+'.pt')
+
                             else:
-                                print('\ndev acc:', test_acc, ' max_dev_acc:', max_dev_acc, '\n')
+                                print('\ndev acc :', f1, ' max_dev_acc:', max_dev_acc, '\n')
                                 break
                         else: # this is test
-                            if test_acc > max_test_acc:
-                                max_test_acc = test_acc
-
-                            final_test_performance = [acc, test_acc]
-                            print('\ntest acc:', test_acc, ' max_test_acc:', max_test_acc, '\n')
-        print('final_test_performance:', final_test_performance)
-
+                            if f1 > max_test_acc:
+                                max_test_acc = f1
+                            final_test_performance = f1
+                            print('\ntest acc:', f1, ' max_test_acc:', max_test_acc, '\n')
+        print('final_test_f1:', final_test_performance)
 
 
 if __name__ == "__main__":
     main()
 
 '''
-mixup:
-CUDA_VISIBLE_DEVICES=6 python -u train_MRPC_batchMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 100000 --use_mixup --beta_sampling_times 400
 
-mixup for 3shot
-CUDA_VISIBLE_DEVICES=0 python -u train_MRPC_batchMixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 5 --eval_batch_size 32 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 3 --use_mixup --beta_sampling_times 400
+CUDA_VISIBLE_DEVICES=0 python -u train.NLI.py --task_name rte --do_train --do_lower_case --num_train_epochs 20 --data_dir '' --output_dir '' --train_batch_size 32 --eval_batch_size 80 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 3 --beta_sampling_times 1
+
+
 '''
