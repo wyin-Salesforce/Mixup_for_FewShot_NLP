@@ -189,7 +189,8 @@ class RteProcessor(DataProcessor):
         dev_relation_2_examples = {}
         filenames = ['train_wiki.json', 'val_wiki.json']
         for filename in filenames:
-            with open('/export/home/Dataset/FewRel.1.0/'+filename) as json_file:
+            # with open('/export/home/Dataset/FewRel.1.0/'+filename) as json_file:
+            with open('/export/share/wenpeng/Mixup/FewRel.1.0/'+filename) as json_file:
                 dev_data = json.load(json_file)
                 for relation, example_list in dev_data.items():
                     assert len(example_list) == 700

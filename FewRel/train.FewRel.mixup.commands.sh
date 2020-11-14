@@ -1,6 +1,6 @@
 export SHOT=0  #0, 0.01, 0.25, 0.50, 0.75
-export BATCHSIZE=20 #2, 4, 4, 5, 16
-export EPOCHSIZE=3
+export BATCHSIZE=32
+export EPOCHSIZE=8
 export LEARNINGRATE=1e-5
 export MAXLEN=64
 export BETATIMES=15
