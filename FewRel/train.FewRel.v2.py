@@ -189,6 +189,7 @@ class RteProcessor(DataProcessor):
 
     def load_FewRel_data(self, k_shot):
         dev_relation_2_examples = {}
+        leng2count = defaultdict(int)
         filenames = ['train_wiki.json', 'val_wiki.json']
         for filename in filenames:
             with open('/export/home/Dataset/FewRel.1.0/'+filename) as json_file:
@@ -197,6 +198,7 @@ class RteProcessor(DataProcessor):
                     assert len(example_list) == 700
                     tup_list = []
                     for example in example_list:
+                        leng2count[len(example.get('tokens'))]+=1
                         sent = ' '.join(example.get('tokens'))
                         head_left = example.get('h')[2][0][0]
                         head_right = example.get('h')[2][0][-1]
@@ -206,7 +208,8 @@ class RteProcessor(DataProcessor):
                     assert len(tup_list) == 700
                     dev_relation_2_examples[relation] = tup_list
             json_file.close()
-
+        print('leng2count:', {k: v for k, v in sorted(leng2count.items(), key=lambda item: item[1])})
+        exit(0)
         relation_list = list(dev_relation_2_examples.keys())
         assert len(relation_list) == 80
         dev_4_train = {}
