@@ -208,7 +208,7 @@ class RteProcessor(DataProcessor):
                     assert len(tup_list) == 700
                     dev_relation_2_examples[relation] = tup_list
             json_file.close()
-        print('leng2count:', {k: v for k, v in sorted(leng2count.items(), key=lambda item: item[1])})
+        print('leng2count:', {k: v for k, v in sorted(leng2count.items(), key=lambda item: item[0])})
         exit(0)
         relation_list = list(dev_relation_2_examples.keys())
         assert len(relation_list) == 80
@@ -788,7 +788,7 @@ if __name__ == "__main__":
 
 '''
 
-CUDA_VISIBLE_DEVICES=0 python -u train.FewRel.v2.py --task_name rte --do_train --do_lower_case --num_train_epochs 3  --train_batch_size 32 --eval_batch_size 80 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 0
+CUDA_VISIBLE_DEVICES=1 python -u train.FewRel.v2.py --task_name rte --do_train --do_lower_case --num_train_epochs 3  --train_batch_size 32 --eval_batch_size 80 --learning_rate 1e-6 --max_seq_length 128 --seed 42 --kshot 0
 
 
 '''
