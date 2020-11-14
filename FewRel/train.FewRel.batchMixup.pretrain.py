@@ -80,9 +80,6 @@ class RobertaForSequenceClassification(nn.Module):
         self.hidden_layer_2 = nn.Linear(bert_hidden_dim, bert_hidden_dim)
         self.single_hidden2tag = RobertaClassificationHead(bert_hidden_dim, tagset_size)
 
-        # self.roberta_pair = RobertaModel.from_pretrained(pretrain_model_dir)
-        # self.pair_hidden2score = nn.Linear(bert_hidden_dim, 1)
-
     def forward(self, input_ids, input_mask, span_a_mask, span_b_mask, lambda_value, is_train = False):
         # single_train_input_ids, single_train_input_mask, single_train_segment_ids, single_train_label_ids = batch_single
         outputs_single = self.roberta_single(input_ids, input_mask, None)

@@ -3,7 +3,7 @@ export BATCHSIZE=32
 export EPOCHSIZE=8
 export LEARNINGRATE=1e-5
 export MAXLEN=64
-export BATCHMIXTIMES=400
+export BATCHMIXTIMES=2400
 
 
 CUDA_VISIBLE_DEVICES=0 python -u train.FewRel.batchMixup.pretrain.py \
