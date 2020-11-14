@@ -36,7 +36,7 @@ from tqdm import tqdm, trange
 from scipy.stats import beta
 from torch.nn import CrossEntropyLoss, MSELoss
 from scipy.special import softmax
-
+from mixup import tile
 from transformers.tokenization_roberta import RobertaTokenizer
 from transformers.optimization import AdamW
 from transformers.modeling_roberta import RobertaModel#RobertaForSequenceClassification
