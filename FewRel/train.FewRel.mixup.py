@@ -36,7 +36,7 @@ from tqdm import tqdm, trange
 from scipy.stats import beta
 from torch.nn import CrossEntropyLoss, MSELoss
 from scipy.special import softmax
-
+from mixup import mixup_layer
 from transformers.tokenization_roberta import RobertaTokenizer
 from transformers.optimization import AdamW
 from transformers.modeling_roberta import RobertaModel#RobertaForSequenceClassification
@@ -80,10 +80,8 @@ class RobertaForSequenceClassification(nn.Module):
         self.hidden_layer_2 = nn.Linear(bert_hidden_dim, bert_hidden_dim)
         self.single_hidden2tag = RobertaClassificationHead(bert_hidden_dim, tagset_size)
 
-        # self.roberta_pair = RobertaModel.from_pretrained(pretrain_model_dir)
-        # self.pair_hidden2score = nn.Linear(bert_hidden_dim, 1)
 
-    def forward(self, input_ids, input_mask, span_a_mask, span_b_mask):
+    def forward(self, input_ids, input_mask, labels, span_a_mask, span_b_mask, lambda_value, is_train, use_mixup):
         # single_train_input_ids, single_train_input_mask, single_train_segment_ids, single_train_label_ids = batch_single
         outputs_single = self.roberta_single(input_ids, input_mask, None)
         output_last_layer_tensor3 = outputs_single[0] #(batch_size, sequence_length, hidden_size)`)
@@ -94,9 +92,11 @@ class RobertaForSequenceClassification(nn.Module):
 
         hidden_states_single = torch.tanh(self.hidden_layer_2(torch.tanh(self.hidden_layer_1(MLP_input)))) #(batch, hidden)
 
-        score_single = self.single_hidden2tag(hidden_states_single) #(batch, tag_set)
-        return score_single
-
+        # score_single = self.single_hidden2tag(hidden_states_single) #(batch, tag_set)
+        # return score_single
+        '''mixup_results might be loss (in training) or logits (in testing)'''
+        mixup_results = mixup_layer(hidden_states_single, labels, self.tagset_size, lambda_value, self.single_hidden2tag, is_train=is_train, use_mixup=use_mixup)
+        return mixup_results
 
 
 class RobertaClassificationHead(nn.Module):
@@ -684,25 +684,20 @@ def main():
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, segment_ids, span_a_mask, span_b_mask, label_ids = batch
 
-                #input_ids, input_mask, span_a_mask, span_b_mask
-                logits = model(input_ids, input_mask, span_a_mask, span_b_mask)
-                loss_fct = CrossEntropyLoss()
+                for sample_i in range(args.beta_sampling_times):
+                    lambda_vec = beta.rvs(0.4, 0.4, size=1)[0]
+                    loss = model(input_ids, input_mask, label_ids, span_a_mask, span_b_mask, lambda_vec, is_train=True, use_mixup=args.use_mixup)
+                    loss_fct = CrossEntropyLoss()
 
-                loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1))
+                    loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1))
 
-                if n_gpu > 1:
-                    loss = loss.mean() # mean() to average on multi-gpu.
+                    if n_gpu > 1:
+                        loss = loss.mean() # mean() to average on multi-gpu.
 
-                loss.backward()
+                    loss.backward()
+                    optimizer.step()
+                    optimizer.zero_grad()
 
-                tr_loss += loss.item()
-                nb_tr_examples += input_ids.size(0)
-                nb_tr_steps += 1
-
-                optimizer.step()
-                optimizer.zero_grad()
-                global_step += 1
-                iter_co+=1
                 # if iter_co %20==0:
                 if iter_co % len(train_dataloader)==0:
                     # if iter_co % (len(train_dataloader)//2)==0:
@@ -737,7 +732,7 @@ def main():
                             gold_label_ids+=list(label_ids.detach().cpu().numpy())
 
                             with torch.no_grad():
-                                logits = model(input_ids, input_mask, span_a_mask, span_b_mask)
+                                logits = model(input_ids, input_mask, label_ids, span_a_mask, span_b_mask, None, is_train=False, use_mixup=False)
                             if len(preds) == 0:
                                 preds.append(logits.detach().cpu().numpy())
                             else:
@@ -783,7 +778,7 @@ if __name__ == "__main__":
 
 '''
 
-CUDA_VISIBLE_DEVICES=1 python -u train.FewRel.py --task_name rte --do_train --do_lower_case --num_train_epochs 3  --train_batch_size 32 --eval_batch_size 128 --learning_rate 1e-6 --max_seq_length 64 --seed 42 --kshot 0
+CUDA_VISIBLE_DEVICES=2 python -u train.FewRel.mixup.py --task_name rte --do_train --do_lower_case --num_train_epochs 10  --train_batch_size 32 --eval_batch_size 128 --learning_rate 1e-5 --max_seq_length 64 --seed 42 --kshot 0 --use_mixup --beta_sampling_times 15
 
 
 '''

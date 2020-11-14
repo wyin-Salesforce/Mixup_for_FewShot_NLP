@@ -1,7 +1,7 @@
 export SHOT=0
 export BATCHSIZE=20 #2, 4, 4, 5, 16
 export EPOCHSIZE=3
-export LEARNINGRATE=1e-6
+export LEARNINGRATE=1e-5
 export MAXLEN=64
 
 
