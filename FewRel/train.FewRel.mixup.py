@@ -687,10 +687,6 @@ def main():
                 for sample_i in range(args.beta_sampling_times):
                     lambda_vec = beta.rvs(0.4, 0.4, size=1)[0]
                     loss = model(input_ids, input_mask, label_ids, span_a_mask, span_b_mask, lambda_vec, is_train=True, use_mixup=args.use_mixup)
-                    loss_fct = CrossEntropyLoss()
-
-                    loss = loss_fct(logits.view(-1, num_labels), label_ids.view(-1))
-
                     if n_gpu > 1:
                         loss = loss.mean() # mean() to average on multi-gpu.
 
