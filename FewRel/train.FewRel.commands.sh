@@ -1,4 +1,4 @@
-export SHOT=0.25
+export SHOT=0.01
 export BATCHSIZE=32
 export EPOCHSIZE=8
 export LEARNINGRATE=1e-5
