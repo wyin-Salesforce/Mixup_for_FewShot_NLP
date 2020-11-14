@@ -7,14 +7,9 @@ import statistics
 # initializing list
 test_list = [
 
-
-
-75.15,
-69.55,
-76.35,
-76.39
-
-
+87.06,
+87.62,
+87.79
 
 ]
 print('sum:', sum(test_list))
