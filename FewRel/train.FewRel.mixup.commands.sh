@@ -1,11 +1,11 @@
-export SHOT=0
-export BATCHSIZE=32
-export EPOCHSIZE=10
+export SHOT=0  #0, 0.01, 0.25, 0.50, 0.75
+export BATCHSIZE=20 #2, 4, 4, 5, 16
+export EPOCHSIZE=3
 export LEARNINGRATE=1e-5
 export MAXLEN=64
+export BETATIMES=15
 
-
-CUDA_VISIBLE_DEVICES=0 python -u train.FewRel.py \
+CUDA_VISIBLE_DEVICES=0 python -u train.FewRel.mixup.py \
     --task_name rte \
     --do_train \
     --do_lower_case \
@@ -15,9 +15,11 @@ CUDA_VISIBLE_DEVICES=0 python -u train.FewRel.py \
     --learning_rate $LEARNINGRATE \
     --max_seq_length $MAXLEN \
     --seed 42 \
-    --kshot $SHOT > log.FewRel.$SHOT.shot.seed.42.txt 2>&1 &
+    --kshot $SHOT \
+    --use_mixup\
+    --beta_sampling_times $BETATIMES > log.FewRel.mixup.$SHOT.shot.seed.42.txt 2>&1 &
 
-CUDA_VISIBLE_DEVICES=1 python -u train.FewRel.py \
+CUDA_VISIBLE_DEVICES=1 python -u train.FewRel.mixup.py \
     --task_name rte \
     --do_train \
     --do_lower_case \
@@ -27,9 +29,11 @@ CUDA_VISIBLE_DEVICES=1 python -u train.FewRel.py \
     --learning_rate $LEARNINGRATE \
     --max_seq_length $MAXLEN \
     --seed 16 \
-    --kshot $SHOT > log.FewRel.$SHOT.shot.seed.16.txt 2>&1 &
+    --kshot $SHOT \
+    --use_mixup\
+    --beta_sampling_times $BETATIMES  > log.FewRel.mixup.$SHOT.shot.seed.16.txt 2>&1 &
 
-CUDA_VISIBLE_DEVICES=2 python -u train.FewRel.py \
+CUDA_VISIBLE_DEVICES=2 python -u train.FewRel.mixup.py \
     --task_name rte \
     --do_train \
     --do_lower_case \
@@ -39,9 +43,11 @@ CUDA_VISIBLE_DEVICES=2 python -u train.FewRel.py \
     --learning_rate $LEARNINGRATE \
     --max_seq_length $MAXLEN \
     --seed 32 \
-    --kshot $SHOT > log.FewRel.$SHOT.shot.seed.32.txt 2>&1 &
+    --kshot $SHOT \
+    --use_mixup\
+    --beta_sampling_times $BETATIMES  > log.FewRel.mixup.$SHOT.shot.seed.32.txt 2>&1 &
 
-CUDA_VISIBLE_DEVICES=3 python -u train.FewRel.py \
+CUDA_VISIBLE_DEVICES=3 python -u train.FewRel.mixup.py \
     --task_name rte \
     --do_train \
     --do_lower_case \
@@ -51,4 +57,6 @@ CUDA_VISIBLE_DEVICES=3 python -u train.FewRel.py \
     --learning_rate $LEARNINGRATE \
     --max_seq_length $MAXLEN \
     --seed 64 \
-    --kshot $SHOT > log.FewRel.$SHOT.shot.seed.64.txt 2>&1 &
+    --kshot $SHOT \
+    --use_mixup\
+    --beta_sampling_times $BETATIMES  > log.FewRel.mixup.$SHOT.shot.seed.64.txt 2>&1 &
