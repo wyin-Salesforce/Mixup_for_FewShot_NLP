@@ -1,8 +1,8 @@
-export SHOT=3 #1, 3, 5, 10, 0
+export SHOT=0
 export BATCHSIZE=20 #2, 4, 4, 5, 16
 export EPOCHSIZE=3
 export LEARNINGRATE=1e-6
-export MAXLEN=128
+export MAXLEN=64
 
 
 CUDA_VISIBLE_DEVICES=0 python -u train.FewRel.py \
@@ -11,7 +11,7 @@ CUDA_VISIBLE_DEVICES=0 python -u train.FewRel.py \
     --do_lower_case \
     --num_train_epochs $EPOCHSIZE \
     --train_batch_size $BATCHSIZE \
-    --eval_batch_size 64 \
+    --eval_batch_size 128 \
     --learning_rate $LEARNINGRATE \
     --max_seq_length $MAXLEN \
     --seed 42 \
@@ -23,7 +23,7 @@ CUDA_VISIBLE_DEVICES=1 python -u train.FewRel.py \
     --do_lower_case \
     --num_train_epochs $EPOCHSIZE \
     --train_batch_size $BATCHSIZE \
-    --eval_batch_size 64 \
+    --eval_batch_size 128 \
     --learning_rate $LEARNINGRATE \
     --max_seq_length $MAXLEN \
     --seed 16 \
@@ -35,7 +35,7 @@ CUDA_VISIBLE_DEVICES=2 python -u train.FewRel.py \
     --do_lower_case \
     --num_train_epochs $EPOCHSIZE \
     --train_batch_size $BATCHSIZE \
-    --eval_batch_size 64 \
+    --eval_batch_size 128 \
     --learning_rate $LEARNINGRATE \
     --max_seq_length $MAXLEN \
     --seed 32 \
@@ -47,7 +47,7 @@ CUDA_VISIBLE_DEVICES=6 python -u train.FewRel.py \
     --do_lower_case \
     --num_train_epochs $EPOCHSIZE \
     --train_batch_size $BATCHSIZE \
-    --eval_batch_size 64 \
+    --eval_batch_size 128 \
     --learning_rate $LEARNINGRATE \
     --max_seq_length $MAXLEN \
     --seed 64 \
