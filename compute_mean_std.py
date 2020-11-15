@@ -7,11 +7,10 @@ import statistics
 # initializing list
 test_list = [
 
-
-4.60,
-3.45,
-2.85,
-2.73
+85.21,
+84.03,
+85.24,
+85.59
 
 
 
